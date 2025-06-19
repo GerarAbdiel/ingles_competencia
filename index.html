@@ -21,7 +21,7 @@
       border: 3px solid #005580;
       border-radius: 10px;
     }
-    #inputTranslation, #fileInput, #typeSelect {
+    #inputTranslation, #fileInput, #typeSelect, #roundSizeSelect {
       margin: 10px;
       padding: 12px;
       font-size: 18px;
@@ -65,6 +65,26 @@
     #errorTable tr:hover {
       background-color: #e6f3ff;
     }
+    #loadingSpinner {
+      display: none;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0077b3;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 1s linear infinite;
+      margin: 10px;
+    }
+    #loadingText {
+      display: none;
+      font-size: 16px;
+      color: #005580;
+      margin: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -74,6 +94,13 @@
     <option value="medium">Medium (8s)</option>
     <option value="hard">Hard (3s)</option>
   </select>
+  <select id="roundSizeSelect">
+    <option value="25">25 Words</option>
+    <option value="half">Half of Words</option>
+    <option value="all">All Words</option>
+  </select>
+  <div id="loadingSpinner"></div>
+  <div id="loadingText">Processing file...</div>
   <button id="startButton" onclick="startPlaying()" style="display: none;">Start Game</button>
   <input type="text" id="inputTranslation" placeholder="Type your translation here" style="display: none;">
   <button id="submitButton" onclick="submit()" style="display: none;">Confirm</button>
@@ -86,7 +113,7 @@
     let timeLeft = 3;
     let gameState = 'waiting';
     let round = 0;
-    let maxRounds = 20;
+    let roundSize = 25; // Default
     let errors = [];
     let practiceRound = 0;
     let maxPracticeRounds = 3;
@@ -98,6 +125,9 @@
     let color1, color2;
     let countdownTimer = 0;
     let countdownNumber = 3;
+    let processingWords = false;
+    let processedCount = 0;
+    let totalWords = 0;
 
     const fallbackTranslations = {
       'hello': ['hola'],
@@ -544,8 +574,8 @@
       'ask': 'verb',
       'say': 'verb',
       'our': 'adjective',
-      'with': 'adverb',
-      'on': 'adverb',
+      'with': 'preposition',
+      'on': 'preposition',
       'open': 'verb',
       'ruler': 'noun',
       'very': 'adverb',
@@ -717,7 +747,7 @@
       'custard': 'noun',
       'jelly': 'noun',
       'pay': 'verb',
-      'at': 'adverb',
+      'at': 'preposition',
       'first': 'adjective',
       'ticket': 'noun',
       'menu': 'noun',
@@ -863,6 +893,7 @@
           gameState = 'playing';
           timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
           shuffleArray(phrases);
+          phrases = phrases.slice(0, roundSize); // Limit to roundSize
           currentPhraseIndex = 0;
           selectNewPhrase();
           document.getElementById('inputTranslation').style.display = 'block';
@@ -877,11 +908,11 @@
         textSize(24);
         if (!fileLoaded) {
           text('Upload a file to start...', width / 2, height / 2);
-          if (phrases.length === 0 && document.getElementById('fileInput').files.length > 0) {
-            text('Processing file...', width / 2, height / 2 + 50);
+          if (processingWords) {
+            text(`Processing file... (${processedCount}/${totalWords})`, width / 2, height / 2 + 50);
           }
         } else {
-          text('File loaded! Click Start Game.', width / 2, height / 2);
+          text('File loaded! Select round size and click Start Game.', width / 2, height / 2);
         }
       } else if (gameState === 'playing') {
         textSize(24);
@@ -890,7 +921,7 @@
           text('Score: ' + score, width / 2, 100);
           text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, 130);
           text('Time Left: ' + ceil(timeLeft), width / 2, 160);
-          text('Round: ' + (round + 1) + '/' + maxRounds, width / 2, 190);
+          text('Round: ' + (round + 1) + '/' + roundSize, width / 2, 190);
           timeLeft -= 1 / frameRate();
           if (timeLeft <= 0) {
             incorrectTranslations++;
@@ -935,6 +966,7 @@
       } else if (gameState === 'finalResults') {
         document.getElementById('fileInput').style.display = 'block';
         document.getElementById('typeSelect').style.display = 'block';
+        document.getElementById('roundSizeSelect').style.display = 'block';
         document.getElementById('inputTranslation').style.display = 'none';
         document.getElementById('submitButton').style.display = 'none';
         textSize(32);
@@ -971,8 +1003,15 @@
 
       if (gameState === 'waiting' && fileLoaded) {
         document.getElementById('startButton').style.display = 'block';
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('loadingText').style.display = 'none';
+      } else if (processingWords) {
+        document.getElementById('loadingSpinner').style.display = 'block';
+        document.getElementById('loadingText').style.display = 'block';
       } else {
         document.getElementById('startButton').style.display = 'none';
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('loadingText').style.display = 'none';
       }
     }
 
@@ -994,6 +1033,53 @@
       URL.revokeObjectURL(url);
     }
 
+    async function processWordChunk(words, startIndex, chunkSize) {
+      const endIndex = Math.min(startIndex + chunkSize, words.length);
+      for (let i = startIndex; i < endIndex; i++) {
+        const word = words[i];
+        const lowerWord = word.toLowerCase();
+        let wordTranslations = translations[lowerWord];
+        if (!wordTranslations) {
+          if (fallbackTranslations[lowerWord]) {
+            wordTranslations = fallbackTranslations[lowerWord].map(normalizeText);
+          } else {
+            wordTranslations = await getTranslations(lowerWord);
+            if (!wordTranslations) {
+              const translationsInput = prompt(`No translations found for "${word}". Please enter Spanish translations separated by commas (e.g., "casa, hogar") or leave blank to skip this word:`, '');
+              if (translationsInput) {
+                wordTranslations = translationsInput.split(',').map(t => normalizeText(t)).filter(t => t);
+              }
+            }
+          }
+          if (wordTranslations && wordTranslations.length > 0) {
+            translations[lowerWord] = wordTranslations;
+            phrases.push({
+              english: lowerWord,
+              spanish: wordTranslations
+            });
+          }
+        } else {
+          phrases.push({
+            english: lowerWord,
+            spanish: wordTranslations
+          });
+        }
+        processedCount++;
+        document.getElementById('loadingText').textContent = `Processing file... (${processedCount}/${totalWords})`;
+      }
+      if (phrases.length >= 10 && !fileLoaded) {
+        fileLoaded = true;
+      }
+      if (endIndex < words.length) {
+        setTimeout(() => processWordChunk(words, endIndex, chunkSize), 0);
+      } else {
+        processingWords = false;
+        if (phrases.length === 0) {
+          alert('No valid words found in the file. Ensure words have available translations or enter translations manually.');
+        }
+      }
+    }
+
     async function handleFile(event) {
       const file = event.target.files[0];
       if (!file) {
@@ -1004,48 +1090,54 @@
         alert('Please upload a .txt file.');
         return;
       }
+      processingWords = true;
+      processedCount = 0;
+      document.getElementById('loadingSpinner').style.display = 'block';
+      document.getElementById('loadingText').style.display = 'block';
       const reader = new FileReader();
       reader.onload = async function(e) {
         const words = e.target.result.split(/[\n,]/).map(w => w.trim()).filter(w => w);
-        if (words.length === 0) {
+        totalWords = [...new Set(words)].length;
+        if (totalWords === 0) {
           alert('The file is empty or contains no valid words.');
+          processingWords = false;
+          document.getElementById('loadingSpinner').style.display = 'none';
+          document.getElementById('loadingText').style.display = 'none';
           return;
         }
         phrases = [];
-        for (let word of [...new Set(words)]) {
-          const lowerWord = word.toLowerCase();
-          let wordTranslations = translations[lowerWord];
-          if (!wordTranslations) {
-            wordTranslations = await getTranslations(lowerWord);
-            if (!wordTranslations) {
-              if (fallbackTranslations[lowerWord]) {
-                wordTranslations = fallbackTranslations[lowerWord].map(normalizeText);
-              } else {
-                const translationsInput = prompt(`No translations found for "${word}". Please enter Spanish translations separated by commas (e.g., "casa, hogar") or leave blank to skip this word:`, '');
-                if (translationsInput) {
-                  wordTranslations = translationsInput.split(',').map(t => normalizeText(t)).filter(t => t);
-                }
-              }
-            }
-            if (wordTranslations && wordTranslations.length > 0) {
-              translations[lowerWord] = wordTranslations;
+        document.getElementById('loadingText').textContent = `Processing file... (0/${totalWords})`;
+        if (file.name === 'ashley.txt') {
+          const uniqueWords = [...new Set(words)];
+          for (let word of uniqueWords) {
+            const lowerWord = word.toLowerCase();
+            if (fallbackTranslations[lowerWord]) {
+              phrases.push({
+                english: lowerWord,
+                spanish: fallbackTranslations[lowerWord].map(normalizeText)
+              });
+              processedCount++;
+              document.getElementById('loadingText').textContent = `Processing file... (${processedCount}/${totalWords})`;
             }
           }
-          if (wordTranslations && wordTranslations.length > 0) {
-            phrases.push({
-              english: lowerWord,
-              spanish: wordTranslations
-            });
+          if (phrases.length >= 10) {
+            fileLoaded = true;
           }
-        }
-        if (phrases.length > 0) {
-          fileLoaded = true;
+          if (phrases.length === 0) {
+            alert('No valid words found in ashley.txt.');
+          }
+          processingWords = false;
+          document.getElementById('loadingSpinner').style.display = 'none';
+          document.getElementById('loadingText').style.display = 'none';
         } else {
-          alert('No valid words found in the file. Ensure words have available translations or enter translations manually.');
+          processWordChunk([...new Set(words)], 0, 50);
         }
       };
       reader.onerror = () => {
         alert('Error reading the file. Please try again.');
+        processingWords = false;
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('loadingText').style.display = 'none';
       };
       reader.readAsText(file);
     }
@@ -1056,11 +1148,21 @@
         alert('No valid words to play with. Please upload a file.');
         return;
       }
+      const roundSizeSelection = document.getElementById('roundSizeSelect').value;
+      if (roundSizeSelection === '25') {
+        roundSize = 25;
+      } else if (roundSizeSelection === 'half') {
+        roundSize = Math.floor(phrases.length / 2);
+      } else {
+        roundSize = phrases.length;
+      }
+      roundSize = Math.min(roundSize, phrases.length); // Cap at available phrases
       gameState = 'countdown';
       countdownNumber = 3;
       countdownTimer = millis();
       document.getElementById('fileInput').style.display = 'none';
       document.getElementById('typeSelect').style.display = 'none';
+      document.getElementById('roundSizeSelect').style.display = 'none';
       document.getElementById('startButton').style.display = 'none';
     }
 
@@ -1132,7 +1234,7 @@
     function nextRound() {
       round++;
       currentPhraseIndex++;
-      if (round >= maxRounds || currentPhraseIndex >= phrases.length || !currentPhrase) {
+      if (round >= roundSize || currentPhraseIndex >= phrases.length || !currentPhrase) {
         if (errors.length === 0) {
           gameState = 'congratulations';
           document.getElementById('inputTranslation').style.display = 'none';
