@@ -12,26 +12,33 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       background-color: #e6f3ff;
       font-family: Arial, sans-serif;
       margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
     }
     canvas {
       border: 3px solid #005580;
       border-radius: 10px;
     }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 10px 0;
+    }
     #inputTranslation, #fileInput, #typeSelect, #roundSizeSelect {
-      margin: 10px;
       padding: 12px;
       font-size: 18px;
-      width: 300px;
+      min-width: 200px;
       border: 2px solid #005580;
       border-radius: 5px;
       background-color: rgba(255, 255, 255, 0.9);
     }
     #submitButton, #startButton {
-      margin: 2px;
       padding: 10px 20px;
       font-size: 16px;
       background-color: #0077b3;
@@ -39,16 +46,24 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     #submitButton:hover, #startButton:hover {
       background-color: #005580;
     }
+    #submitButton:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
     #errorTable {
       border-collapse: collapse;
-      width: 80%;
+      width: 90%;
+      max-width: 800px;
       margin-top: 20px;
       font-size: 16px;
       background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      overflow: hidden;
     }
     #errorTable th, #errorTable td {
       border: 1px solid #005580;
@@ -65,45 +80,99 @@
     #errorTable tr:hover {
       background-color: #e6f3ff;
     }
-    #loadingSpinner {
+    .loading-container {
       display: none;
+      align-items: center;
+      gap: 10px;
+      margin: 10px;
+    }
+    #loadingSpinner {
       border: 4px solid #f3f3f3;
       border-top: 4px solid #0077b3;
       border-radius: 50%;
       width: 24px;
       height: 24px;
       animation: spin 1s linear infinite;
-      margin: 10px;
     }
     #loadingText {
-      display: none;
       font-size: 16px;
       color: #005580;
-      margin: 10px;
+    }
+    .progress-bar {
+      width: 300px;
+      height: 20px;
+      background-color: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background-color: #0077b3;
+      transition: width 0.3s;
+      border-radius: 10px;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .info-panel {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+      text-align: center;
+      max-width: 600px;
+    }
+    @media (max-width: 768px) {
+      canvas {
+        width: 90vw !important;
+        height: auto !important;
+      }
+      .controls {
+        flex-direction: column;
+        align-items: center;
+      }
+      #inputTranslation, #fileInput, #typeSelect, #roundSizeSelect {
+        width: 90vw;
+        max-width: 300px;
+      }
+    }
   </style>
 </head>
 <body>
-  <input type="file" id="fileInput" accept=".txt">
-  <select id="typeSelect">
-    <option value="easy">Easy (15s)</option>
-    <option value="medium">Medium (8s)</option>
-    <option value="hard">Hard (3s)</option>
-  </select>
-  <select id="roundSizeSelect">
-    <option value="25">25 Words</option>
-    <option value="half">Half of Words</option>
-    <option value="all">All Words</option>
-  </select>
-  <div id="loadingSpinner"></div>
-  <div id="loadingText">Processing file...</div>
-  <button id="startButton" onclick="startPlaying()" style="display: none;">Start Game</button>
-  <input type="text" id="inputTranslation" placeholder="Type your translation here" style="display: none;">
-  <button id="submitButton" onclick="submit()" style="display: none;">Confirm</button>
+  <div class="info-panel">
+    <h1>🌟 Translate Blitz</h1>
+    <p>Translate English words to Spanish as fast as you can!</p>
+  </div>
+  
+  <div class="controls">
+    <input type="file" id="fileInput" accept=".txt" title="Upload a text file with English words">
+    <select id="typeSelect" title="Select difficulty level">
+      <option value="easy">Easy (15s per word)</option>
+      <option value="medium">Medium (8s per word)</option>
+      <option value="hard">Hard (3s per word)</option>
+    </select>
+    <select id="roundSizeSelect" title="Select how many words to practice">
+      <option value="25">25 Words</option>
+      <option value="half">Half of Words</option>
+      <option value="all">All Words</option>
+    </select>
+  </div>
+  
+  <div class="loading-container" id="loadingContainer">
+    <div id="loadingSpinner"></div>
+    <div id="loadingText">Processing file...</div>
+  </div>
+  
+  <div class="progress-bar" id="progressBar" style="display: none;">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+  
+  <button id="startButton" onclick="startPlaying()" style="display: none;">🚀 Start Game</button>
+  <input type="text" id="inputTranslation" placeholder="Type your translation here" style="display: none;" autocomplete="off">
+  <button id="submitButton" onclick="submit()" style="display: none;">✅ Confirm</button>
+
   <script>
     let phrases = [];
     let currentPhrase = null;
@@ -113,101 +182,604 @@
     let timeLeft = 3;
     let gameState = 'waiting';
     let round = 0;
-    let roundSize = 25; // Default
+    let roundSize = 25;
     let errors = [];
     let practiceRound = 0;
     let maxPracticeRounds = 3;
     let currentPhraseIndex = 0;
     let fileLoaded = false;
     let difficultyTimes = { easy: 15, medium: 8, hard: 3 };
-    let translations = {};
     let particles = [];
     let color1, color2;
     let countdownTimer = 0;
-    let countdownNumber = 3;
     let processingWords = false;
     let processedCount = 0;
     let totalWords = 0;
 
+    // Expanded fallback translations dictionary
     const fallbackTranslations = {
       'hello': ['hola'],
       'hi': ['hola'],
       'goodbye': ['adiós', 'hasta luego'],
       'please': ['por favor'],
       'thank you': ['gracias'],
+      'thanks': ['gracias'],
       'sorry': ['lo siento', 'perdón'],
-      'good morning': ['Buenos días'],
-      'good night': ['Buenas noches'],
+      'excuse me': ['disculpe', 'perdón'],
+      'good morning': ['buenos días'],
+      'good afternoon': ['buenas tardes'],  
+      'good evening': ['buenas noches'],
+      'good night': ['buenas noches'],
+      'how are you': ['cómo estás'],
+      'fine': ['bien'],
+      'yes': ['sí'],
+      'no': ['no'],
+      'maybe': ['tal vez', 'quizás'],
+      'of course': ['por supuesto', 'claro'],
       'am': ['soy', 'estoy'],
       'is': ['es', 'está'],
-      'are': ['son', 'están'],
+      'are': ['son', 'están', 'eres'],
+      'was': ['era', 'estaba', 'fue'],
+      'were': ['eran', 'estaban', 'fueron'],
+      'be': ['ser', 'estar'],
+      'been': ['sido', 'estado'],
+      'being': ['siendo', 'estando'],
       'have': ['tener', 'haber'],
+      'has': ['tiene', 'ha'],
+      'had': ['tenía', 'tuvo', 'había'],
+      'do': ['hacer'],
+      'does': ['hace'],
+      'did': ['hizo', 'hice'],
+      'will': ['va a', 'será'],
+      'would': ['haría', 'sería'],
+      'can': ['puede', 'poder'],
+      'could': ['podría', 'pudo'],
+      'should': ['debería'],
+      'must': ['debe', 'deber'],
       'go': ['ir'],
+      'goes': ['va'],
+      'went': ['fue', 'fui'],
       'come': ['venir'],
-      'eat': ['comer'],
-      'drink': ['beber'],
-      'run': ['correr'],
-      'walk': ['caminar'],
+      'came': ['vino', 'vine'],
+      'get': ['obtener', 'conseguir'],
+      'got': ['obtuvo', 'conseguí'],
+      'give': ['dar'],
+      'gave': ['dio', 'di'],
+      'take': ['tomar', 'llevar'],
+      'took': ['tomó', 'tomé'],
+      'make': ['hacer'],
+      'made': ['hizo', 'hice'],
+      'see': ['ver'],
+      'saw': ['vio', 'vi'],
+      'look': ['mirar'],
+      'watch': ['ver', 'mirar', 'reloj'],
+      'find': ['encontrar'],
+      'found': ['encontró', 'encontré'],
+      'know': ['saber', 'conocer'],
+      'knew': ['sabía', 'conocía'],
+      'think': ['pensar'],
+      'thought': ['pensó', 'pensé'],
+      'feel': ['sentir'],
+      'felt': ['sentí', 'sintió'],
+      'want': ['querer'],
+      'need': ['necesitar'],
+      'like': ['gustar', 'como'],
+      'love': ['amar'],
+      'hate': ['odiar'],
+      'help': ['ayudar', 'ayuda'],
+      'work': ['trabajar', 'trabajo'],
+      'worked': ['trabajó', 'trabajé'],
+      'play': ['jugar'],
+      'played': ['jugó', 'jugué'],
+      'study': ['estudiar'],
+      'learn': ['aprender'],
+      'teach': ['enseñar'],
       'read': ['leer'],
       'write': ['escribir'],
       'speak': ['hablar'],
+      'talk': ['hablar'],
       'listen': ['escuchar'],
-      'see': ['ver'],
-      'look': ['mirar'],
-      'play': ['jugar'],
-      'study': ['estudiar'],
-      'work': ['trabajar'],
+      'hear': ['oír', 'escuchar'],
+      'eat': ['comer'],
+      'drink': ['beber'],
       'sleep': ['dormir'],
-      'house': ['casa'],
-      'car': ['coche', 'auto'],
-      'dog': ['perro'],
-      'cat': ['gato'],
-      'bird': ['pájaro'],
-      'fish': ['pez', 'pescado'],
-      'tree': ['árbol'],
-      'book': ['libro'],
-      'school': ['escuela'],
-      'teacher': ['profesor', 'maestro'],
-      'student': ['estudiante', 'alumno'],
-      'friend': ['amigo'],
+      'wake': ['despertar'],
+      'run': ['correr'],
+      'walk': ['caminar'],
+      'drive': ['manejar', 'conducir'],
+      'travel': ['viajar'],
+      'live': ['vivir'],
+      'die': ['morir'],
+      'buy': ['comprar'],
+      'sell': ['vender'],
+      'pay': ['pagar'],
+      'cost': ['costar'],
+      'open': ['abrir'],
+      'close': ['cerrar'],
+      'start': ['empezar', 'comenzar'],
+      'stop': ['parar', 'detener'],
+      'finish': ['terminar', 'acabar'],
+      'continue': ['continuar'],
+      'wait': ['esperar'],
+      'stay': ['quedarse', 'permanecer'],
+      'leave': ['salir', 'dejar'],
+      'arrive': ['llegar'],
+      'return': ['regresar', 'volver'],
+      'visit': ['visitar'],
+      'meet': ['conocer', 'encontrar'],
+      'call': ['llamar'],
+      'answer': ['responder'],
+      'ask': ['preguntar'],
+      'tell': ['decir'],
+      'say': ['decir'],
+      'explain': ['explicar'],
+      'understand': ['entender'],
+      'remember': ['recordar'],
+      'forget': ['olvidar'],
+      'hope': ['esperar'],
+      'believe': ['creer'],
+      'agree': ['estar de acuerdo'],
+      'disagree': ['no estar de acuerdo'],
+      'choose': ['elegir'],
+      'decide': ['decidir'],
+      'try': ['intentar', 'tratar'],
+      'use': ['usar'],
+      'put': ['poner'],
+      'give': ['dar'],
+      'show': ['mostrar'],
+      'bring': ['traer'],
+      'send': ['enviar'],
+      'receive': ['recibir'],
+      'create': ['crear'],
+      'build': ['construir'],
+      'break': ['romper'],
+      'fix': ['arreglar'],
+      'clean': ['limpiar'],
+      'wash': ['lavar'],
+      'cook': ['cocinar'],
+      'cut': ['cortar'],
+      'carry': ['llevar', 'cargar'],
+      'push': ['empujar'],
+      'pull': ['jalar'],
+      'hold': ['sostener'],
+      'throw': ['lanzar', 'tirar'],
+      'catch': ['atrapar'],
+      'hit': ['golpear'],
+      'kick': ['patear'],
+      'jump': ['saltar'],
+      'climb': ['escalar'],
+      'fall': ['caer'],
+      'fly': ['volar'],
+      'swim': ['nadar'],
+      'dance': ['bailar'],
+      'sing': ['cantar'],
+      'laugh': ['reír'],
+      'cry': ['llorar'],
+      'smile': ['sonreír', 'sonrisa'],
+      'worry': ['preocuparse'],
+      'relax': ['relajarse'],
+      'enjoy': ['disfrutar'],
+      'celebrate': ['celebrar'],
+      'win': ['ganar'],
+      'lose': ['perder'],
+      'compete': ['competir'],
+      'practice': ['practicar'],
+      'exercise': ['hacer ejercicio'],
+      'rest': ['descansar'],
+      'person': ['persona'],
+      'people': ['gente', 'personas'],
+      'man': ['hombre'],
+      'woman': ['mujer'],
+      'child': ['niño', 'niña'],
+      'children': ['niños'],
+      'boy': ['niño'],
+      'girl': ['niña'],
+      'baby': ['bebé'],
+      'adult': ['adulto'],
+      'teenager': ['adolescente'],
+      'friend': ['amigo', 'amiga'],
       'family': ['familia'],
+      'parent': ['padre', 'madre'],
       'mother': ['madre', 'mamá'],
       'father': ['padre', 'papá'],
+      'son': ['hijo'],
+      'daughter': ['hija'],
       'brother': ['hermano'],
       'sister': ['hermana'],
+      'grandmother': ['abuela'],
+      'grandfather': ['abuelo'],
+      'aunt': ['tía'],
+      'uncle': ['tío'],
+      'cousin': ['primo', 'prima'],
+      'husband': ['marido', 'esposo'],
+      'wife': ['esposa'],
+      'boyfriend': ['novio'],
+      'girlfriend': ['novia'],
+      'neighbor': ['vecino', 'vecina'],
+      'teacher': ['profesor', 'profesora', 'maestro', 'maestra'],
+      'student': ['estudiante', 'alumno', 'alumna'],
+      'doctor': ['doctor', 'médico'],
+      'nurse': ['enfermero', 'enfermera'],
+      'police': ['policía'],
+      'firefighter': ['bombero'],
+      'driver': ['conductor', 'chofer'],
+      'worker': ['trabajador'],
+      'manager': ['gerente'],
+      'boss': ['jefe'],
+      'employee': ['empleado'],
+      'customer': ['cliente'],
+      'artist': ['artista'],
+      'musician': ['músico'],
+      'singer': ['cantante'],
+      'actor': ['actor'],
+      'writer': ['escritor'],
+      'chef': ['chef', 'cocinero'],
+      'farmer': ['granjero', 'agricultor'],
+      'engineer': ['ingeniero'],
+      'lawyer': ['abogado'],
+      'scientist': ['científico'],
+      'house': ['casa'],
+      'home': ['hogar', 'casa'],
+      'apartment': ['apartamento', 'departamento'],
+      'room': ['cuarto', 'habitación'],
+      'bedroom': ['dormitorio', 'recámara'],
+      'bathroom': ['baño'],
+      'kitchen': ['cocina'],
+      'living room': ['sala'],
+      'dining room': ['comedor'],
+      'garage': ['garaje'],
+      'garden': ['jardín'],
+      'yard': ['patio'],
+      'door': ['puerta'],
+      'window': ['ventana'],
+      'wall': ['pared'],
+      'floor': ['piso', 'suelo'],
+      'ceiling': ['techo'],
+      'roof': ['techo'],
+      'stairs': ['escaleras'],
+      'elevator': ['elevador', 'ascensor'],
+      'furniture': ['muebles'],
+      'table': ['mesa'],
+      'chair': ['silla'],
+      'bed': ['cama'],
+      'sofa': ['sofá'],
+      'desk': ['escritorio'],
+      'shelf': ['estante'],
+      'closet': ['clóset', 'armario'],
+      'mirror': ['espejo'],
+      'lamp': ['lámpara'],
+      'television': ['televisión'],
+      'tv': ['televisión'],
+      'computer': ['computadora', 'ordenador'],
+      'laptop': ['computadora portátil', 'laptop'],
+      'phone': ['teléfono'],
+      'camera': ['cámara'],
+      'clock': ['reloj'],
+      'calendar': ['calendario'],
+      'book': ['libro'],
+      'magazine': ['revista'],
+      'newspaper': ['periódico'],
+      'letter': ['carta'],
+      'email': ['correo electrónico'],
+      'message': ['mensaje'],
+      'picture': ['foto', 'imagen'],
+      'photo': ['foto'],
+      'painting': ['pintura'],
+      'music': ['música'],
+      'song': ['canción'],
+      'movie': ['película'],
+      'film': ['película'],
+      'video': ['video'],
+      'game': ['juego'],
+      'sport': ['deporte'],
+      'soccer': ['fútbol'],
+      'football': ['fútbol americano'],
+      'basketball': ['baloncesto'],
+      'baseball': ['béisbol'],
+      'tennis': ['tenis'],
+      'golf': ['golf'],
+      'swimming': ['natación'],
+      'running': ['correr'],
+      'cycling': ['ciclismo'],
+      'hiking': ['senderismo'],
+      'camping': ['acampar'],
+      'fishing': ['pesca'],
+      'hunting': ['caza'],
+      'shopping': ['compras'],
+      'cooking': ['cocinar'],
+      'reading': ['leer'],
+      'writing': ['escribir'],
+      'drawing': ['dibujar'],
+      'painting': ['pintar'],
+      'dancing': ['bailar'],
+      'singing': ['cantar'],
+      'school': ['escuela'],
+      'university': ['universidad'],
+      'college': ['colegio', 'universidad'],
+      'class': ['clase'],
+      'lesson': ['lección'],
+      'homework': ['tarea'],
+      'test': ['examen', 'prueba'],
+      'grade': ['calificación', 'grado'],
+      'subject': ['materia', 'asignatura'],
+      'math': ['matemáticas'],
+      'science': ['ciencia'],
+      'history': ['historia'],
+      'geography': ['geografía'],  
+      'language': ['idioma', 'lenguaje'],
+      'english': ['inglés'],
+      'spanish': ['español'],
+      'french': ['francés'],
+      'german': ['alemán'],
+      'italian': ['italiano'],
+      'chinese': ['chino'],
+      'japanese': ['japonés'],
+      'arabic': ['árabe'],
+      'office': ['oficina'],
+      'bank': ['banco'],
+      'hospital': ['hospital'],
+      'store': ['tienda'],
+      'shop': ['tienda'],
+      'market': ['mercado'],
+      'supermarket': ['supermercado'],
+      'restaurant': ['restaurante'],
+      'cafe': ['café', 'cafetería'],
+      'bar': ['bar'],
+      'hotel': ['hotel'],
+      'airport': ['aeropuerto'],
+      'station': ['estación'],
+      'bus': ['autobús', 'camión'],
+      'train': ['tren'],
+      'plane': ['avión'],
+      'car': ['coche', 'auto', 'carro'],
+      'truck': ['camión'],
+      'bicycle': ['bicicleta'],
+      'motorcycle': ['motocicleta'],
+      'boat': ['barco', 'bote'],
+      'ship': ['barco', 'nave'],
+      'street': ['calle'],
+      'road': ['carretera', 'camino'],
+      'bridge': ['puente'],
+      'building': ['edificio'],
+      'tower': ['torre'],
+      'church': ['iglesia'],
+      'museum': ['museo'],
+      'theater': ['teatro'],
+      'cinema': ['cine'],
+      'park': ['parque'],
+      'beach': ['playa'],
+      'mountain': ['montaña'],
+      'hill': ['colina'],
+      'river': ['río'],
+      'lake': ['lago'],
+      'ocean': ['océano'],
+      'sea': ['mar'],
+      'forest': ['bosque'],
+      'tree': ['árbol'],
+      'flower': ['flor'],
+      'grass': ['césped', 'hierba'],
+      'plant': ['planta'],
+      'animal': ['animal'],
+      'dog': ['perro'],
+      'cat': ['gato'],
+      'bird': ['pájaro', 'ave'],
+      'fish': ['pez', 'pescado'],
+      'horse': ['caballo'],
+      'cow': ['vaca'],
+      'pig': ['cerdo'],
+      'sheep': ['oveja'],
+      'chicken': ['pollo', 'gallina'],
+      'duck': ['pato'],
+      'rabbit': ['conejo'],
+      'mouse': ['ratón'],
+      'elephant': ['elefante'],
+      'lion': ['león'],
+      'tiger': ['tigre'],
+      'bear': ['oso'],
+      'monkey': ['mono'],
+      'snake': ['serpiente'],
+      'spider': ['araña'],
+      'insect': ['insecto'],
+      'butterfly': ['mariposa'],
+      'bee': ['abeja'],
+      'fly': ['mosca'],
       'food': ['comida'],
+      'meal': ['comida'],
+      'breakfast': ['desayuno'],
+      'lunch': ['almuerzo', 'comida'],
+      'dinner': ['cena'],
+      'snack': ['bocadillo', 'merienda'],
+      'bread': ['pan'],
+      'rice': ['arroz'],
+      'pasta': ['pasta'],
+      'pizza': ['pizza'],
+      'sandwich': ['sándwich'],
+      'hamburger': ['hamburguesa'],
+      'hot dog': ['perro caliente'],
+      'salad': ['ensalada'],
+      'soup': ['sopa'],
+      'meat': ['carne'],
+      'beef': ['carne de res'],
+      'pork': ['cerdo'],
+      'chicken': ['pollo'],
+      'fish': ['pescado'],
+      'egg': ['huevo'],
+      'cheese': ['queso'],
+      'milk': ['leche'],
+      'butter': ['mantequilla'],
+      'cream': ['crema'],
+      'yogurt': ['yogur'],
+      'ice cream': ['helado'],
+      'cake': ['pastel'],
+      'cookie': ['galleta'],
+      'candy': ['dulce'],
+      'chocolate': ['chocolate'],
+      'sugar': ['azúcar'],
+      'salt': ['sal'],
+      'pepper': ['pimienta'],
+      'oil': ['aceite'],
+      'vinegar': ['vinagre'],
+      'sauce': ['salsa'],
+      'fruit': ['fruta'],
+      'apple': ['manzana'],
+      'banana': ['plátano'],
+      'orange': ['naranja'],
+      'grape': ['uva'],
+      'strawberry': ['fresa'],
+      'cherry': ['cereza'],
+      'peach': ['durazno'],
+      'pear': ['pera'],
+      'pineapple': ['piña'],
+      'watermelon': ['sandía'],
+      'lemon': ['limón'],
+      'lime': ['lima'],
+      'coconut': ['coco'],
+      'vegetable': ['vegetal', 'verdura'],
+      'potato': ['papa', 'patata'],
+      'tomato': ['tomate'],
+      'onion': ['cebolla'],
+      'carrot': ['zanahoria'],
+      'lettuce': ['lechuga'],
+      'cabbage': ['repollo'],
+      'broccoli': ['brócoli'],
+      'cucumber': ['pepino'],
+      'pepper': ['pimiento'],
+      'corn': ['maíz'],
+      'bean': ['frijol'],
+      'peas': ['guisantes'],
+      'mushroom': ['hongo', 'seta'],
+      'garlic': ['ajo'],
+      'ginger': ['jengibre'],
+      'herb': ['hierba'],
+      'spice': ['especia'],
+      'drink': ['bebida'],
       'water': ['agua'],
-      'sun': ['sol'],
-      'moon': ['luna'],
-      'star': ['estrella'],
-      'sky': ['cielo'],
+      'juice': ['jugo'],
+      'soda': ['refresco'],
+      'coffee': ['café'],
+      'tea': ['té'],
+      'beer': ['cerveza'],
+      'wine': ['vino'],
+      'alcohol': ['alcohol'],
+      'bottle': ['botella'],
+      'glass': ['vaso', 'vidrio'],
+      'cup': ['taza'],
+      'plate': ['plato'],
+      'bowl': ['tazón'],
+      'spoon': ['cuchara'],
+      'knife': ['cuchillo'],
+      'fork': ['tenedor'],
+      'napkin': ['servilleta'],
+      'menu': ['menú'],
+      'recipe': ['receta'],
+      'kitchen': ['cocina'],
+      'refrigerator': ['refrigerador'],
+      'stove': ['estufa'],
+      'oven': ['horno'],
+      'microwave': ['microondas'],
+      'dishwasher': ['lavaplatos'],
+      'sink': ['fregadero'],
+      'pot': ['olla'],
+      'pan': ['sartén'],
+      'clothing': ['ropa'],
+      'clothes': ['ropa'],
+      'shirt': ['camisa'],
+      'pants': ['pantalones'],
+      'dress': ['vestido'],
+      'skirt': ['falda'],
+      'jacket': ['chaqueta'],
+      'coat': ['abrigo'],
+      'sweater': ['suéter'],
+      'jeans': ['jeans'],
+      'shorts': ['pantalones cortos'],
+      'underwear': ['ropa interior'],
+      'socks': ['calcetines'],
+      'shoes': ['zapatos'],
+      'boots': ['botas'],
+      'sandals': ['sandalias'],
+      'hat': ['sombrero'],
+      'cap': ['gorra'],
+      'gloves': ['guantes'],
+      'scarf': ['bufanda'],
+      'belt': ['cinturón'],
+      'tie': ['corbata'],
+      'jewelry': ['joyería'],
+      'ring': ['anillo'],
+      'necklace': ['collar'],
+      'earrings': ['aretes'],
+      'watch': ['reloj'],
+      'glasses': ['lentes', 'anteojos'],
+      'sunglasses': ['lentes de sol'],
+      'bag': ['bolsa'],
+      'purse': ['bolso'],
+      'wallet': ['billetera'],
+      'backpack': ['mochila'],
+      'suitcase': ['maleta'],
+      'umbrella': ['paraguas'],
+      'key': ['llave'],
+      'money': ['dinero'],
+      'cash': ['efectivo'],
+      'coin': ['moneda'],
+      'bill': ['billete'],
+      'credit card': ['tarjeta de crédito'],
+      'bank': ['banco'],
+      'price': ['precio'],
+      'cost': ['costo'],
+      'cheap': ['barato'],
+      'expensive': ['caro'],
+      'free': ['gratis'],
+      'job': ['trabajo'],
+      'career': ['carrera'],
+      'business': ['negocio'],
+      'company': ['empresa'],
+      'meeting': ['reunión'],
+      'interview': ['entrevista'],
+      'salary': ['salario'],
+      'vacation': ['vacaciones'],
+      'holiday': ['día festivo'],
+      'weekend': ['fin de semana'],
+      'schedule': ['horario'],
+      'appointment': ['cita'],
+      'time': ['tiempo', 'hora'],
+      'hour': ['hora'],
+      'minute': ['minuto'],
+      'second': ['segundo'],
       'day': ['día'],
+      'week': ['semana'],
+      'month': ['mes'],
+      'year': ['año'],
+      'today': ['hoy'],
+      'yesterday': ['ayer'],
+      'tomorrow': ['mañana'],
+      'morning': ['mañana'],
+      'afternoon': ['tarde'],
+      'evening': ['noche'],
       'night': ['noche'],
-      'good': ['bueno', 'bien'],
-      'bad': ['malo', 'mal'],
-      'big': ['grande'],
-      'small': ['pequeño'],
-      'happy': ['feliz'],
-      'sad': ['triste'],
-      'beautiful': ['hermoso', 'bonito'],
-      'ugly': ['feo'],
-      'hot': ['caliente'],
-      'cold': ['frío'],
-      'new': ['nuevo'],
-      'old': ['viejo'],
-      'fast': ['rápido'],
-      'slow': ['lento'],
-      'red': ['rojo'],
-      'blue': ['azul'],
-      'green': ['verde'],
-      'yellow': ['amarillo'],
-      'black': ['negro'],
-      'white': ['blanco'],
-      'one': ['uno'],
-      'two': ['dos'],
-      'three': ['tres'],
-      'four': ['cuatro'],
-      'five': ['cinco'],
+      'midnight': ['medianoche'],
+      'noon': ['mediodía'],
+      'early': ['temprano'],
+      'late': ['tarde'],
+      'soon': ['pronto'],
+      'now': ['ahora'],
+      'then': ['entonces'],
+      'before': ['antes'],
+      'after': ['después'],
+      'during': ['durante'],
+      'while': ['mientras'],
+      'until': ['hasta'],
+      'since': ['desde'],
+      'already': ['ya'],
+      'still': ['todavía'],
+      'yet': ['aún'],
+      'again': ['otra vez'],
+      'once': ['una vez'],
+      'twice': ['dos veces'],
+      'always': ['siempre'],
+      'never': ['nunca'],
+      'sometimes': ['a veces'],
+      'often': ['a menudo'],
+      'usually': ['usualmente'],
+      'rarely': ['raramente'],
       'monday': ['lunes'],
       'tuesday': ['martes'],
       'wednesday': ['miércoles'],
@@ -215,599 +787,2650 @@
       'friday': ['viernes'],
       'saturday': ['sábado'],
       'sunday': ['domingo'],
-      'city': ['ciudad'],
-      'park': ['parque'],
-      'beach': ['playa'],
-      'mountain': ['montaña'],
-      'river': ['río'],
-      'forest': ['bosque'],
-      'lollypop': ['piruleta', 'chupachups'],
-      'stay': ['quedarse', 'permanecer'],
-      'smile': ['sonrisa', 'sonreír'],
-      'sick': ['enfermo', 'mal'],
-      'table': ['mesa', 'tabla'],
-      'also': ['también', 'además'],
-      'computer': ['computadora', 'ordenador'],
-      'i am sorry': ['lo siento'],
-      'look at me': ['mírame'],
-      'fill': ['llenar'],
+      'january': ['enero'],
+      'february': ['febrero'],
+      'march': ['marzo'],
+      'april': ['abril'],
+      'may': ['mayo'],
+      'june': ['junio'],
+      'july': ['julio'],
+      'august': ['agosto'],
+      'september': ['septiembre'],
+      'october': ['octubre'],
+      'november': ['noviembre'],
+      'december': ['diciembre'],
+      'spring': ['primavera'],
+      'summer': ['verano'],
+      'fall': ['otoño'],
+      'autumn': ['otoño'],
+      'winter': ['invierno'],
+      'weather': ['clima'],
+      'sunny': ['soleado'],
+      'cloudy': ['nublado'],
+      'rainy': ['lluvioso'],
+      'snowy': ['nevado'],
+      'windy': ['ventoso'],
+      'hot': ['caliente'],
+      'warm': ['cálido'],
+      'cool': ['fresco'],
+      'cold': ['frío'],
+      'freezing': ['helado'],
+      'temperature': ['temperatura'],
+      'sun': ['sol'],
+      'moon': ['luna'],
+      'star': ['estrella'],
+      'sky': ['cielo'],
+      'cloud': ['nube'],
+      'rain': ['lluvia'],
+      'snow': ['nieve'],
+      'wind': ['viento'],
+      'storm': ['tormenta'],
+      'lightning': ['relámpago'],
+      'thunder': ['trueno'],
+      'rainbow': ['arcoíris'],
+      'fire': ['fuego'],
+      'water': ['agua'],
+      'ice': ['hielo'],
+      'steam': ['vapor'],
+      'air': ['aire'],
+      'earth': ['tierra'],
+      'ground': ['suelo'],
+      'sand': ['arena'],
+      'rock': ['roca'],
+      'stone': ['piedra'],
+      'metal': ['metal'],
+      'wood': ['madera'],
+      'plastic': ['plástico'],
+      'glass': ['vidrio'],
+      'paper': ['papel'],
+      'cloth': ['tela'],
+      'leather': ['cuero'],
+      'cotton': ['algodón'],
+      'silk': ['seda'],
+      'wool': ['lana'],
+      'color': ['color'],
+      'red': ['rojo'],
+      'blue': ['azul'],
+      'green': ['verde'],
+      'yellow': ['amarillo'],
+      'orange': ['naranja'],
+      'purple': ['morado', 'violeta'],
+      'pink': ['rosa'],
+      'brown': ['marrón', 'café'],
+      'black': ['negro'],
+      'white': ['blanco'],
+      'gray': ['gris'],
+      'grey': ['gris'],
+      'light': ['claro', 'luz'],
+      'dark': ['oscuro'],
+      'bright': ['brillante'],
+      'dim': ['tenue'],
+      'shiny': ['brilloso'],
+      'dull': ['opaco'],
+      'clear': ['claro'],
+      'transparent': ['transparente'],
+      'opaque': ['opaco'],
+      'size': ['tamaño'],
+      'big': ['grande'],
+      'large': ['grande'],
+      'huge': ['enorme'],
+      'giant': ['gigante'],
+      'small': ['pequeño'],
+      'little': ['pequeño'],
+      'tiny': ['diminuto'],
+      'medium': ['mediano'],
+      'long': ['largo'],
+      'short': ['corto'],
+      'tall': ['alto'],
+      'high': ['alto'],
+      'low': ['bajo'],
+      'wide': ['ancho'],
+      'narrow': ['estrecho'],
+      'thick': ['grueso'],
+      'thin': ['delgado'],
+      'fat': ['gordo'],
+      'heavy': ['pesado'],
+      'light': ['ligero'],
+      'strong': ['fuerte'],
+      'weak': ['débil'],
+      'hard': ['duro'],
+      'soft': ['suave'],
+      'rough': ['áspero'],
+      'smooth': ['liso'],
+      'sharp': ['filoso'],
+      'dull': ['sin filo'],
+      'clean': ['limpio'],
+      'dirty': ['sucio'],
+      'new': ['nuevo'],
+      'old': ['viejo'],
+      'young': ['joven'],
+      'fresh': ['fresco'],
+      'stale': ['rancio'],
+      'rotten': ['podrido'],
+      'raw': ['crudo'],
+      'cooked': ['cocido'],
+      'hot': ['caliente'],
+      'cold': ['frío'],
+      'warm': ['tibio'],
+      'cool': ['fresco'],
+      'wet': ['mojado'],
+      'dry': ['seco'],
+      'empty': ['vacío'],
       'full': ['lleno'],
-      'better': ['mejor'],
-      'middle': ['medio', 'centro'],
-      'angry': ['enojado', 'furioso'],
-      'eh': ['eh', 'uh'],
-      'how': ['cómo'],
-      'how much': ['cuánto'],
+      'open': ['abierto'],
+      'closed': ['cerrado'],
+      'locked': ['cerrado con llave'],
+      'broken': ['roto'],
+      'fixed': ['arreglado'],
+      'whole': ['entero'],
+      'half': ['mitad'],
+      'complete': ['completo'],
+      'incomplete': ['incompleto'],
+      'perfect': ['perfecto'],
+      'imperfect': ['imperfecto'],
+      'right': ['correcto', 'derecha'],
+      'wrong': ['incorrecto'],
+      'correct': ['correcto'],
+      'incorrect': ['incorrecto'],
+      'true': ['verdadero'],
+      'false': ['falso'],
+      'real': ['real'],
+      'fake': ['falso'],
+      'natural': ['natural'],
+      'artificial': ['artificial'],
+      'normal': ['normal'],
+      'strange': ['extraño'],
+      'weird': ['raro'],
+      'funny': ['gracioso'],
+      'serious': ['serio'],
+      'important': ['importante'],
+      'necessary': ['necesario'],
+      'useful': ['útil'],
+      'useless': ['inútil'],
+      'easy': ['fácil'],
+      'difficult': ['difícil'],
+      'hard': ['difícil'],
+      'simple': ['simple'],
+      'complicated': ['complicado'],
+      'complex': ['complejo'],
+      'possible': ['posible'],
+      'impossible': ['imposible'],
+      'safe': ['seguro'],
+      'dangerous': ['peligroso'],
+      'careful': ['cuidadoso'],
+      'careless': ['descuidado'],
+      'fast': ['rápido'],
+      'quick': ['rápido'],
+      'slow': ['lento'],
+      'early': ['temprano'],
+      'late': ['tarde'],
+      'first': ['primero'],
+      'last': ['último'],
+      'next': ['siguiente'],
+      'previous': ['anterior'],
+      'good': ['bueno'],
+      'bad': ['malo'],
+      'great': ['genial'],
+      'excellent': ['excelente'],
+      'wonderful': ['maravilloso'],
+      'amazing': ['increíble'],
+      'terrible': ['terrible'],
+      'awful': ['horrible'],
+      'nice': ['agradable'],
+      'pleasant': ['agradable'],
+      'unpleasant': ['desagradable'],
+      'beautiful': ['hermoso'],
+      'pretty': ['bonito'],
+      'handsome': ['guapo'],
+      'ugly': ['feo'],
+      'attractive': ['atractivo'],
+      'cute': ['lindo'],
+      'lovely': ['encantador'],
+      'gorgeous': ['hermoso'],
+      'smart': ['inteligente'],
+      'intelligent': ['inteligente'],
+      'clever': ['listo'],
+      'stupid': ['estúpido'],
+      'silly': ['tonto'],
+      'wise': ['sabio'],
+      'foolish': ['tonto'],
+      'brave': ['valiente'],
+      'coward': ['cobarde'],
+      'honest': ['honesto'],
+      'dishonest': ['deshonesto'],
+      'kind': ['amable'],
+      'mean': ['malo'],
+      'nice': ['agradable'],
+      'rude': ['grosero'],
+      'polite': ['educado'],
+      'friendly': ['amigable'],
+      'unfriendly': ['poco amigable'],
+      'generous': ['generoso'],
+      'selfish': ['egoísta'],
+      'patient': ['paciente'],
+      'impatient': ['impaciente'],
+      'calm': ['calmado'],
+      'nervous': ['nervioso'],
+      'relaxed': ['relajado'],
+      'stressed': ['estresado'],
+      'happy': ['feliz'],
+      'sad': ['triste'],
+      'glad': ['contento'],
+      'upset': ['molesto'],
+      'angry': ['enojado'],
+      'mad': ['furioso'],
+      'excited': ['emocionado'],
+      'bored': ['aburrido'],
+      'interested': ['interesado'],
+      'surprised': ['sorprendido'],
+      'shocked': ['conmocionado'],
+      'confused': ['confundido'],
+      'worried': ['preocupado'],
+      'scared': ['asustado'],
+      'afraid': ['con miedo'],
+      'frightened': ['asustado'],
+      'tired': ['cansado'],
+      'sleepy': ['somnoliento'],
+      'awake': ['despierto'],
+      'energetic': ['enérgico'],
+      'sick': ['enfermo'],
+      'ill': ['enfermo'],
+      'healthy': ['saludable'],
+      'well': ['bien'],
+      'fine': ['bien'],
+      'hurt': ['lastimado'],
+      'injured': ['herido'],
+      'pain': ['dolor'],
+      'comfortable': ['cómodo'],
+      'uncomfortable': ['incómodo'],
+      'hungry': ['hambriento'],
+      'thirsty': ['sediento'],
+      'full': ['lleno'],
+      'satisfied': ['satisfecho'],
+      'rich': ['rico'],
+      'poor': ['pobre'],
+      'wealthy': ['acaudalado'],
+      'expensive': ['caro'],
+      'cheap': ['barato'],
+      'free': ['gratis'],
+      'busy': ['ocupado'],
+      'free': ['libre'],
+      'available': ['disponible'],
+      'unavailable': ['no disponible'],
+      'ready': ['listo'],
+      'prepared': ['preparado'],
+      'finished': ['terminado'],
+      'done': ['hecho'],
+      'complete': ['completo'],
+      'over': ['terminado'],
+      'started': ['comenzado'],
+      'begun': ['comenzado'],
+      'ended': ['terminado'],
+      'number': ['número'],
+      'zero': ['cero'],
+      'one': ['uno'],
+      'two': ['dos'],
+      'three': ['tres'],
+      'four': ['cuatro'],
+      'five': ['cinco'],
+      'six': ['seis'],
+      'seven': ['siete'],
+      'eight': ['ocho'],
+      'nine': ['nueve'],
+      'ten': ['diez'],
+      'eleven': ['once'],
+      'twelve': ['doce'],
+      'thirteen': ['trece'],
+      'fourteen': ['catorce'],
+      'fifteen': ['quince'],
+      'sixteen': ['dieciséis'],
+      'seventeen': ['diecisiete'],
+      'eighteen': ['dieciocho'],
+      'nineteen': ['diecinueve'],
+      'twenty': ['veinte'],
+      'thirty': ['treinta'],
+      'forty': ['cuarenta'],
+      'fifty': ['cincuenta'],
+      'sixty': ['sesenta'],
+      'seventy': ['setenta'],
+      'eighty': ['ochenta'],
+      'ninety': ['noventa'],
+      'hundred': ['cien'],
+      'thousand': ['mil'],
+      'million': ['millón'],
+      'first': ['primero'],
+      'second': ['segundo'],
+      'third': ['tercero'],
+      'fourth': ['cuarto'],
+      'fifth': ['quinto'],
+      'math': ['matemáticas'],
+      'plus': ['más'],
+      'minus': ['menos'],
+      'times': ['por'],
+      'divided': ['dividido'],
+      'equals': ['igual'],
+      'percent': ['por ciento'],
+      'half': ['mitad'],
+      'quarter': ['cuarto'],
+      'double': ['doble'],
+      'triple': ['triple'],
+      'single': ['solo'],
+      'multiple': ['múltiple'],
+      'many': ['muchos'],
+      'few': ['pocos'],
+      'several': ['varios'],
+      'some': ['algunos'],
+      'any': ['cualquier'],
+      'all': ['todos'],
+      'every': ['cada'],
+      'each': ['cada'],
+      'none': ['ninguno'],
+      'nothing': ['nada'],
+      'something': ['algo'],
+      'anything': ['cualquier cosa'],
+      'everything': ['todo'],
+      'someone': ['alguien'],
+      'anyone': ['cualquiera'],
+      'everyone': ['todos'],
+      'nobody': ['nadie'],
+      'somewhere': ['en algún lugar'],
+      'anywhere': ['en cualquier lugar'],
+      'everywhere': ['en todas partes'],
+      'nowhere': ['en ningún lugar'],
+      'here': ['aquí'],
+      'there': ['allí'],
       'where': ['dónde'],
       'when': ['cuándo'],
-      'this': ['esto', 'esta'],
-      'ask': ['preguntar'],
-      'say': ['decir'],
-      'our': ['nuestro'],
-      'with': ['con'],
-      'on': ['en', 'sobre'],
-      'open': ['abrir'],
-      'ruler': ['regla'],
-      'very': ['muy'],
+      'why': ['por qué'],
+      'how': ['cómo'],
       'what': ['qué'],
-      'what is your name': ['cuál es tu nombre'],
-      'i want': ['quiero'],
-      'hamburger': ['hamburguesa'],
-      'games': ['juegos'],
-      'apple': ['manzana'],
-      'are you': ['eres'],
-      'girl': ['niña'],
-      'boy': ['niño'],
-      'woman': ['mujer'],
-      'man': ['hombre'],
-      'soccer': ['fútbol'],
-      'basketball': ['baloncesto'],
-      'tennis': ['tenis'],
-      'golf': ['golf'],
-      'rugby': ['rugby'],
-      'cricket': ['críquet'],
-      'football': ['fútbol americano'],
-      'swimming': ['natación'],
-      'cycling': ['ciclismo'],
-      'boxing': ['boxeo'],
-      'hacking': ['piratería informática'],
-      'running': ['correr'],
-      'gymnastics': ['gimnasia'],
-      'rhythmic': ['rítmico'],
-      'equestrian': ['ecuestre'],
-      'sailing': ['vela'],
-      'shooting': ['tiro'],
-      'snowboarding': ['snowboard'],
-      'wakeboard': ['wakeboard'],
-      'watersurf': ['surf'],
-      'parachuting': ['paracaidismo'],
-      'kitesurfing': ['kitesurf'],
-      'climbing': ['escalada'],
-      'ping pong': ['ping pong', 'tenis de mesa'],
-      'jogging': ['trotar'],
-      'waterpolo': ['waterpolo'],
-      'handball': ['balonmano'],
-      'ice hockey': ['hockey sobre hielo'],
-      'martial arts': ['artes marciales'],
-      'wrestling': ['lucha libre'],
-      'where you from': ['de dónde eres'],
-      'i want a banana and an apple': ['quiero un plátano y una manzana'],
-      'i want a hamburger and a car please': ['quiero una hamburguesa y un coche por favor'],
-      'good morning i want play games and apple please': ['Buenos días quiero jugar juegos y una manzana por favor'],
-      'how much is this bag': ['cuánto cuesta esta bolsa'],
-      'bag': ['bolsa'],
-      'eraser': ['borrador'],
-      'liquid paper': ['corrector líquido'],
-      'backpack': ['mochila'],
-      'laptop': ['computadora portátil'],
-      'wallet': ['billetera'],
-      'watch': ['reloj'],
-      'notebook': ['cuaderno'],
-      'pencil': ['lápiz'],
-      'pen': ['bolígrafo'],
-      'pencil-case': ['estuche'],
-      'scissors': ['tijeras'],
-      'stapler': ['grapadora'],
-      'glue': ['pegamento'],
-      'desk': ['escritorio'],
-      'chair': ['silla'],
-      'banana': ['plátano'],
-      'orange': ['naranja'],
-      'strawberry': ['fresa'],
-      'pineapple': ['piña'],
-      'watermelon': ['sandía'],
-      'grapes': ['uvas'],
-      'mango': ['mango'],
-      'peach': ['durazno'],
-      'pear': ['pera'],
-      'blueberry': ['arándano'],
-      'raspberry': ['frambuesa'],
-      'blackberry': ['mora'],
-      'lime': ['limón verde'],
-      'lemon': ['limón'],
-      'coconut': ['coco'],
-      'avocado': ['aguacate'],
-      'papaya': ['papaya'],
-      'guava': ['guayaba'],
-      'carrot': ['zanahoria'],
-      'potato': ['papa'],
-      'tomato': ['tomate'],
-      'onion': ['cebolla'],
-      'lettuce': ['lechuga'],
-      'broccoli': ['brócoli'],
-      'spinach': ['espinaca'],
-      'cucumber': ['pepino'],
-      'pepper': ['pimiento'],
-      'garlic': ['ajo'],
-      'zucchini': ['calabacín'],
-      'eggplant': ['berenjena'],
-      'sweet potato': ['camote'],
-      'green beans': ['ejotes'],
-      'peas': ['guisantes'],
-      'beet': ['remolacha'],
-      'pumpkin': ['calabaza'],
-      'celery': ['apio'],
-      'artichoke': ['alcachofa'],
-      'beef': ['carne de res'],
-      'chicken': ['pollo'],
-      'pork': ['cerdo'],
-      'lamb': ['cordero'],
-      'bacon': ['tocino'],
-      'sausage': ['salchicha'],
-      'ham': ['jamón'],
-      'duck': ['pato'],
-      'goat': ['cabra'],
-      'veal': ['ternera'],
-      'meatballs': ['albóndigas'],
-      'ribs': ['costillas'],
-      'steak': ['bistec'],
-      'ground beef': ['carne molida'],
-      'shrimp': ['camarón'],
-      'crab': ['cangrejo'],
-      'lobster': ['langosta'],
-      'octopus': ['pulpo'],
-      'squid': ['calamar'],
-      'mussels': ['mejillones'],
-      'clams': ['almejas'],
-      'anchovy': ['anchoa'],
-      'herring': ['arenque'],
-      'tuna': ['atún'],
-      'salmon': ['salmón'],
-      'sea bass': ['lubina'],
-      'trout': ['trucha'],
-      'rice': ['arroz'],
-      'bread': ['pan'],
-      'pasta': ['pasta'],
-      'oats': ['avena'],
-      'corn': ['maíz'],
-      'barley': ['cebada'],
-      'wheat': ['trigo'],
-      'quinoa': ['quinoa'],
-      'couscous': ['cuscús'],
-      'rye': ['centeno'],
-      'tortilla': ['tortilla'],
-      'crackers': ['galletas saladas'],
-      'milk': ['leche'],
-      'cheese': ['queso'],
-      'yogurt': ['yogur'],
-      'butter': ['mantequilla'],
-      'cream': ['crema'],
-      'sour cream': ['crema agria'],
-      'evaporated milk': ['leche evaporada'],
-      'condensed milk': ['leche condensada'],
-      'juice': ['jugo'],
-      'soda': ['refresco'],
-      'coffee': ['café'],
-      'tea': ['té'],
-      'beer': ['cerveza'],
-      'wine': ['vino'],
-      'smoothie': ['batido'],
-      'milkshake': ['malteada'],
-      'cocktail': ['cóctel'],
-      'sparkling water': ['agua con gas'],
-      'hot chocolate': ['chocolate caliente'],
-      'cake': ['pastel'],
-      'ice cream': ['helado'],
-      'cookies': ['galletas'],
-      'pudding': ['pudín'],
-      'pie': ['pay'],
-      'chocolate': ['chocolate'],
-      'doughnut': ['dona'],
-      'muffin': ['muffin'],
-      'custard': ['flan'],
-      'jelly': ['gelatina'],
-      'pay': ['pagar'],
+      'which': ['cuál'],
+      'who': ['quién'],
+      'whose': ['de quién'],
+      'whom': ['a quién'],
+      'this': ['este', 'esta', 'esto'],
+      'that': ['ese', 'esa', 'eso'],
+      'these': ['estos', 'estas'],
+      'those': ['esos', 'esas'],
+      'such': ['tal'],
+      'same': ['mismo'],
+      'different': ['diferente'],
+      'other': ['otro'],
+      'another': ['otro'],
+      'both': ['ambos'],
+      'either': ['cualquiera'],
+      'neither': ['ninguno'],
+      'all': ['todo'],
+      'most': ['la mayoría'],
+      'more': ['más'],
+      'less': ['menos'],
+      'much': ['mucho'],
+      'little': ['poco'],
+      'enough': ['suficiente'],
+      'too': ['demasiado'],
+      'very': ['muy'],
+      'quite': ['bastante'],
+      'rather': ['más bien'],
+      'pretty': ['bastante'],
+      'fairly': ['bastante'],
+      'really': ['realmente'],
+      'truly': ['verdaderamente'],
+      'actually': ['en realidad'],
+      'certainly': ['ciertamente'],
+      'definitely': ['definitivamente'],
+      'probably': ['probablemente'],
+      'possibly': ['posiblemente'],
+      'maybe': ['tal vez'],
+      'perhaps': ['quizás'],
+      'surely': ['seguramente'],
+      'absolutely': ['absolutamente'],
+      'completely': ['completamente'],
+      'totally': ['totalmente'],
+      'entirely': ['enteramente'],
+      'quite': ['bastante'],
+      'almost': ['casi'],
+      'nearly': ['casi'],
+      'hardly': ['apenas'],
+      'barely': ['apenas'],
+      'scarcely': ['apenas'],
+      'just': ['solo'],
+      'only': ['solo'],
+      'even': ['incluso'],
+      'also': ['también'],
+      'too': ['también'],
+      'as well': ['también'],
+      'besides': ['además'],
+      'moreover': ['además'],
+      'furthermore': ['además'],
+      'however': ['sin embargo'],
+      'nevertheless': ['sin embargo'],
+      'nonetheless': ['no obstante'],
+      'yet': ['sin embargo'],
+      'still': ['aún'],
+      'though': ['aunque'],
+      'although': ['aunque'],
+      'despite': ['a pesar de'],
+      'in spite of': ['a pesar de'],
+      'because': ['porque'],
+      'since': ['ya que'],
+      'as': ['como'],
+      'for': ['para'],
+      'so': ['así que'],
+      'therefore': ['por lo tanto'],
+      'thus': ['así'],
+      'hence': ['por tanto'],
+      'consequently': ['en consecuencia'],
+      'accordingly': ['en consecuencia'],
+      'if': ['si'],
+      'unless': ['a menos que'],
+      'whether': ['si'],
+      'or': ['o'],
+      'and': ['y'],
+      'but': ['pero'],
+      'nor': ['ni'],
+      'for': ['para'],
+      'yet': ['sin embargo'],
+      'so': ['así que'],
+      'i': ['yo'],
+      'me': ['me', 'mí'],
+      'my': ['mi'],
+      'mine': ['mío'],
+      'myself': ['yo mismo'],
+      'you': ['tú', 'usted'],
+      'your': ['tu', 'su'],
+      'yours': ['tuyo', 'suyo'],
+      'yourself': ['tú mismo'],
+      'he': ['él'],
+      'him': ['lo', 'le'],
+      'his': ['su'],
+      'himself': ['él mismo'],
+      'she': ['ella'],
+      'her': ['la', 'le', 'su'],
+      'hers': ['suyo'],
+      'herself': ['ella misma'],
+      'it': ['eso'],
+      'its': ['su'],
+      'itself': ['sí mismo'],
+      'we': ['nosotros'],
+      'us': ['nos'],
+      'our': ['nuestro'],
+      'ours': ['nuestro'],
+      'ourselves': ['nosotros mismos'],
+      'they': ['ellos'],
+      'them': ['los', 'les'],
+      'their': ['su'],
+      'theirs': ['suyo'],
+      'themselves': ['ellos mismos'],
+      'in': ['en'],
+      'on': ['en', 'sobre'],
       'at': ['en'],
+      'by': ['por'],
+      'for': ['para'],
+      'with': ['con'],
+      'without': ['sin'],
+      'to': ['a'],
+      'from': ['de'],
+      'of': ['de'],
+      'about': ['sobre', 'acerca de'],
+      'above': ['arriba'],
+      'below': ['abajo'],
+      'under': ['debajo'],
+      'over': ['sobre'],
+      'through': ['a través'],
+      'across': ['a través'],
+      'around': ['alrededor'],
+      'between': ['entre'],
+      'among': ['entre'],
+      'behind': ['detrás'],
+      'in front of': ['enfrente de'],
+      'beside': ['al lado de'],
+      'next to': ['al lado de'],
+      'near': ['cerca'],
+      'far': ['lejos'],
+      'inside': ['dentro'],
+      'outside': ['afuera'],
+      'up': ['arriba'],
+      'down': ['abajo'],
+      'left': ['izquierda'],
+      'right': ['derecha'],
+      'north': ['norte'],
+      'south': ['sur'],
+      'east': ['este'],
+      'west': ['oeste'],
+      'forward': ['adelante'],
+      'backward': ['atrás'],
+      'ahead': ['adelante'],
+      'straight': ['derecho'],
+      'turn': ['girar'],
+      'corner': ['esquina'],
+      'side': ['lado'],
+      'middle': ['medio'],
+      'center': ['centro'],
+      'edge': ['borde'],
+      'top': ['arriba'],
+      'bottom': ['abajo'],
+      'front': ['frente'],
+      'back': ['atrás'],
+      'beginning': ['principio'],
+      'end': ['final'],
+      'start': ['inicio'],
+      'finish': ['final'],
+      'place': ['lugar'],
+      'position': ['posición'],
+      'location': ['ubicación'],
+      'address': ['dirección'],
+      'city': ['ciudad'],
+      'town': ['pueblo'],
+      'village': ['aldea'],
+      'country': ['país'],
+      'nation': ['nación'],
+      'state': ['estado'],
+      'province': ['provincia'],
+      'region': ['región'],
+      'area': ['área'],
+      'zone': ['zona'],
+      'district': ['distrito'],
+      'neighborhood': ['vecindario'],
+      'world': ['mundo'],
+      'earth': ['tierra'],
+      'planet': ['planeta'],
+      'universe': ['universo'],
+      'space': ['espacio'],
+      'room': ['espacio', 'cuarto'],
+      'hall': ['pasillo'],
+      'corridor': ['corredor'],
+      'entrance': ['entrada'],
+      'exit': ['salida'],
+      'way': ['camino'],
+      'path': ['sendero'],
+      'route': ['ruta'],
+      'direction': ['dirección'],
+      'distance': ['distancia'],
+      'journey': ['viaje'],
+      'trip': ['viaje'],
+      'travel': ['viajar'],
+      'vacation': ['vacaciones'],
+      'holiday': ['día festivo'],
+      'tour': ['tour'],
+      'visit': ['visita'],
+      'guest': ['invitado'],
+      'host': ['anfitrión'],
+      'welcome': ['bienvenido'],
+      'goodbye': ['adiós'],
+      'farewell': ['despedida'],
+      'greeting': ['saludo'],
+      'introduction': ['presentación'],
+      'name': ['nombre'],
+      'age': ['edad'],
+      'birthday': ['cumpleaños'],
+      'anniversary': ['aniversario'],
+      'celebration': ['celebración'],
+      'party': ['fiesta'],
+      'wedding': ['boda'],
+      'funeral': ['funeral'],
+      'ceremony': ['ceremonia'],
+      'event': ['evento'],
+      'occasion': ['ocasión'],
+      'meeting': ['reunión'],
+      'conference': ['conferencia'],
+      'appointment': ['cita'],
+      'date': ['fecha', 'cita'],
+      'plan': ['plan'],
+      'program': ['programa'],
+      'schedule': ['horario'],
+      'agenda': ['agenda'],
+      'list': ['lista'],
+      'note': ['nota'],
+      'message': ['mensaje'],
+      'news': ['noticias'],
+      'information': ['información'],
+      'data': ['datos'],
+      'fact': ['hecho'],
+      'truth': ['verdad'],
+      'lie': ['mentira'],
+      'story': ['historia'],
+      'tale': ['cuento'],
+      'joke': ['chiste'],
+      'secret': ['secreto'],
+      'surprise': ['sorpresa'],
+      'gift': ['regalo'],
+      'present': ['regalo'],
+      'prize': ['premio'],
+      'award': ['premio'],
+      'reward': ['recompensa'],
+      'punishment': ['castigo'],
+      'fine': ['multa'],
+      'law': ['ley'],
+      'rule': ['regla'],
+      'regulation': ['regulación'],
+      'order': ['orden'],
+      'command': ['comando'],
+      'request': ['solicitud'],
+      'question': ['pregunta'],
+      'answer': ['respuesta'],
+      'reply': ['respuesta'],
+      'response': ['respuesta'],
+      'solution': ['solución'],
+      'problem': ['problema'],
+      'issue': ['problema'],
+      'trouble': ['problema'],
+      'difficulty': ['dificultad'],
+      'challenge': ['desafío'],
+      'opportunity': ['oportunidad'],
+      'chance': ['oportunidad'],
+      'possibility': ['posibilidad'],
+      'choice': ['elección'],
+      'option': ['opción'],
+      'decision': ['decisión'],
+      'conclusion': ['conclusión'],
+      'result': ['resultado'],
+      'consequence': ['consecuencia'],
+      'effect': ['efecto'],
+      'cause': ['causa'],
+      'reason': ['razón'],
+      'purpose': ['propósito'],
+      'goal': ['meta'],
+      'aim': ['objetivo'],
+      'target': ['objetivo'],
+      'objective': ['objetivo'],
+      'plan': ['plan'],
+      'idea': ['idea'],
+      'thought': ['pensamiento'],
+      'opinion': ['opinión'],
+      'view': ['vista', 'opinión'],
+      'belief': ['creencia'],
+      'faith': ['fe'],
+      'hope': ['esperanza'],
+      'dream': ['sueño'],
+      'wish': ['deseo'],
+      'want': ['querer'],
+      'need': ['necesidad'],
+      'desire': ['deseo'],
+      'love': ['amor'],
+      'like': ['gustar'],
+      'hate': ['odio'],
+      'fear': ['miedo'],
+      'worry': ['preocupación'],
+      'concern': ['preocupación'],
+      'care': ['cuidado'],
+      'attention': ['atención'],
+      'focus': ['enfoque'],
+      'concentration': ['concentración'],
+      'memory': ['memoria'],
+      'mind': ['mente'],
+      'brain': ['cerebro'],
+      'head': ['cabeza'],
+      'face': ['cara'],
+      'eye': ['ojo'],
+      'ear': ['oreja'],
+      'nose': ['nariz'],
+      'mouth': ['boca'],
+      'tooth': ['diente'],
+      'tongue': ['lengua'],
+      'lip': ['labio'],
+      'chin': ['barbilla'],
+      'cheek': ['mejilla'],
+      'forehead': ['frente'],
+      'eyebrow': ['ceja'],
+      'eyelash': ['pestaña'],
+      'hair': ['cabello'],
+      'neck': ['cuello'],
+      'throat': ['garganta'],
+      'shoulder': ['hombro'],
+      'arm': ['brazo'],
+      'elbow': ['codo'],
+      'wrist': ['muñeca'],
+      'hand': ['mano'],
+      'finger': ['dedo'],
+      'thumb': ['pulgar'],
+      'nail': ['uña'],
+      'chest': ['pecho'],
+      'breast': ['pecho'],
+      'heart': ['corazón'],
+      'lung': ['pulmón'],
+      'stomach': ['estómago'],
+      'belly': ['barriga'],
+      'back': ['espalda'],
+      'waist': ['cintura'],
+      'hip': ['cadera'],
+      'leg': ['pierna'],
+      'thigh': ['muslo'],
+      'knee': ['rodilla'],
+      'ankle': ['tobillo'],
+      'foot': ['pie'],
+      'toe': ['dedo del pie'],
+      'heel': ['talón'],
+      'skin': ['piel'],
+      'bone': ['hueso'],
+      'muscle': ['músculo'],
+      'blood': ['sangre'],
+      'body': ['cuerpo'],
+      'health': ['salud'],
+      'medicine': ['medicina'],
+      'doctor': ['doctor'],
+      'nurse': ['enfermera'],
+      'hospital': ['hospital'],
+      'clinic': ['clínica'],
+      'pharmacy': ['farmacia'],
+      'drug': ['droga', 'medicamento'],
+      'pill': ['pastilla'],
+      'treatment': ['tratamiento'],
+      'cure': ['cura'],
+      'disease': ['enfermedad'],
+      'illness': ['enfermedad'],
+      'sickness': ['enfermedad'],
+      'injury': ['lesión'],
+      'wound': ['herida'],
+      'cut': ['corte'],
+      'burn': ['quemadura'],
+      'bruise': ['moretón'],
+      'scar': ['cicatriz'],
+      'bandage': ['vendaje'],
+      'operation': ['operación'],
+      'surgery': ['cirugía'],
+      'examination': ['examen'],
+      'test': ['prueba'],
+      'x-ray': ['radiografía'],
+      'temperature': ['temperatura'],
+      'fever': ['fiebre'],
+      'cold': ['resfriado'],
+      'flu': ['gripe'],
+      'headache': ['dolor de cabeza'],
+      'toothache': ['dolor de muelas'],
+      'stomachache': ['dolor de estómago'],
+      'backache': ['dolor de espalda'],
+      'cough': ['tos'],
+      'sneeze': ['estornudo'],
+      'breath': ['respiración'],
+      'breathe': ['respirar'],
+      'sweat': ['sudar'],
+      'cry': ['llorar'],
+      'tear': ['lágrima'],
+      'smile': ['sonrisa'],
+      'laugh': ['risa'],
+      'voice': ['voz'],
+      'sound': ['sonido'],
+      'noise': ['ruido'],
+      'music': ['música'],
+      'song': ['canción'],
+      'singer': ['cantante'],
+      'musician': ['músico'],
+      'instrument': ['instrumento'],
+      'piano': ['piano'],
+      'guitar': ['guitarra'],
+      'violin': ['violín'],
+      'drum': ['tambor'],
+      'trumpet': ['trompeta'],
+      'flute': ['flauta'],
+      'radio': ['radio'],
+      'television': ['televisión'],
+      'computer': ['computadora'],
+      'internet': ['internet'],
+      'website': ['sitio web'],
+      'email': ['correo electrónico'],
+      'phone': ['teléfono'],
+      'cell phone': ['teléfono celular'],
+      'mobile': ['móvil'],
+      'smartphone': ['teléfono inteligente'],
+      'tablet': ['tableta'],
+      'screen': ['pantalla'],
+      'keyboard': ['teclado'],
+      'mouse': ['ratón'],
+      'printer': ['impresora'],
+      'camera': ['cámara'],
+      'video': ['video'],
+      'photograph': ['fotografía'],
+      'picture': ['imagen'],
+      'image': ['imagen'],
+      'art': ['arte'],
+      'painting': ['pintura'],
+      'drawing': ['dibujo'],
+      'sculpture': ['escultura'],
+      'artist': ['artista'],
+      'painter': ['pintor'],
+      'writer': ['escritor'],
+      'author': ['autor'],
+      'poet': ['poeta'],
+      'novel': ['novela'],
+      'poem': ['poema'],
+      'story': ['historia'],
+      'chapter': ['capítulo'],
+      'page': ['página'],
+      'line': ['línea'],
+      'word': ['palabra'],
+      'sentence': ['oración'],
+      'paragraph': ['párrafo'],
+      'letter': ['letra', 'carta'],
+      'alphabet': ['alfabeto'],
+      'grammar': ['gramática'],
+      'vocabulary': ['vocabulario'],
+      'dictionary': ['diccionario'],
+      'translation': ['traducción'],
+      'language': ['idioma'],
+      'accent': ['acento'],
+      'pronunciation': ['pronunciación'],
+      'conversation': ['conversación'],
+      'discussion': ['discusión'],
+      'argument': ['argumento'],
+      'debate': ['debate'],
+      'agreement': ['acuerdo'],
+      'disagreement': ['desacuerdo'],
+      'contract': ['contrato'],
+      'deal': ['trato'],
+      'business': ['negocio'],
+      'company': ['empresa'],
+      'organization': ['organización'],
+      'office': ['oficina'],
+      'factory': ['fábrica'],
+      'shop': ['tienda'],
+      'store': ['tienda'],
+      'market': ['mercado'],
+      'mall': ['centro comercial'],
+      'customer': ['cliente'],
+      'service': ['servicio'],
+      'product': ['producto'],
+      'quality': ['calidad'],
+      'quantity': ['cantidad'],
+      'amount': ['cantidad'],
+      'number': ['número'],
+      'count': ['contar'],
+      'measure': ['medir'],
+      'weight': ['peso'],
+      'length': ['longitud'],
+      'width': ['ancho'],
+      'height': ['altura'],
+      'depth': ['profundidad'],
+      'area': ['área'],
+      'volume': ['volumen'],
+      'speed': ['velocidad'],
+      'distance': ['distancia'],
+      'space': ['espacio'],
+      'place': ['lugar'],
+      'position': ['posición'],
+      'direction': ['dirección'],
+            'movement': ['movimiento'],
+      'motion': ['movimiento'],
+      'action': ['acción'],
+      'activity': ['actividad'],
+      'exercise': ['ejercicio'],
+      'practice': ['práctica'],
+      'training': ['entrenamiento'],
+      'lesson': ['lección'],
+      'class': ['clase'],
+      'course': ['curso'],
+      'education': ['educación'],
+      'knowledge': ['conocimiento'],
+      'skill': ['habilidad'],
+      'ability': ['habilidad'],
+      'talent': ['talento'],
+      'gift': ['don'],
+      'experience': ['experiencia'],
+      'experiment': ['experimento'],
+      'test': ['prueba'],
+      'trial': ['prueba'],
+      'attempt': ['intento'],
+      'effort': ['esfuerzo'],
+      'try': ['intentar'],
+      'success': ['éxito'],
+      'failure': ['fracaso'],
+      'mistake': ['error'],
+      'error': ['error'],
+      'fault': ['falta'],
+      'blame': ['culpa'],
+      'responsibility': ['responsabilidad'],
+      'duty': ['deber'],
+      'obligation': ['obligación'],
+      'task': ['tarea'],
+      'job': ['trabajo'],
+      'assignment': ['asignación'],
+      'project': ['proyecto'],
+      'mission': ['misión'],
+      'purpose': ['propósito'],
+      'function': ['función'],
+      'role': ['papel'],
+      'part': ['parte'],
+      'piece': ['pieza'],
+      'section': ['sección'],
+      'division': ['división'],
+      'department': ['departamento'],
+      'team': ['equipo'],
+      'group': ['grupo'],
+      'club': ['club'],
+      'organization': ['organización'],
+      'association': ['asociación'],
+      'society': ['sociedad'],
+      'community': ['comunidad'],
+      'public': ['público'],
+      'private': ['privado'],
+      'personal': ['personal'],
+      'individual': ['individual'],
+      'social': ['social'],
+      'political': ['político'],
+      'economic': ['económico'],
+      'financial': ['financiero'],
+      'commercial': ['comercial'],
+      'industrial': ['industrial'],
+      'technical': ['técnico'],
+      'scientific': ['científico'],
+      'medical': ['médico'],
+      'legal': ['legal'],
+      'official': ['oficial'],
+      'formal': ['formal'],
+      'informal': ['informal'],
+      'casual': ['casual'],
+      'serious': ['serio'],
+      'professional': ['profesional'],
+      'amateur': ['amateur'],
+      'expert': ['experto'],
+      'specialist': ['especialista'],
+      'beginner': ['principiante'],
+      'advanced': ['avanzado'],
+      'basic': ['básico'],
+      'fundamental': ['fundamental'],
+      'essential': ['esencial'],
+      'important': ['importante'],
+      'significant': ['significativo'],
+      'major': ['mayor'],
+      'minor': ['menor'],
+      'main': ['principal'],
+      'primary': ['primario'],
+      'secondary': ['secundario'],
+      'final': ['final'],
+      'ultimate': ['último'],
+      'original': ['original'],
+      'initial': ['inicial'],
+      'temporary': ['temporal'],
+      'permanent': ['permanente'],
+      'constant': ['constante'],
+      'variable': ['variable'],
+      'stable': ['estable'],
+      'unstable': ['inestable'],
+      'regular': ['regular'],
+      'irregular': ['irregular'],
+      'normal': ['normal'],
+      'abnormal': ['anormal'],
+      'typical': ['típico'],
+      'unusual': ['inusual'],
+      'common': ['común'],
+      'rare': ['raro'],
+      'popular': ['popular'],
+      'famous': ['famoso'],
+      'well-known': ['conocido'],
+      'unknown': ['desconocido'],
+      'mysterious': ['misterioso'],
+      'secret': ['secreto'],
+      'hidden': ['oculto'],
+      'visible': ['visible'],
+      'invisible': ['invisible'],
+      'obvious': ['obvio'],
+      'clear': ['claro'],
+      'unclear': ['poco claro'],
+      'confusing': ['confuso'],
+      'complicated': ['complicado'],
+      'complex': ['complejo'],
+      'simple': ['simple'],
+      'plain': ['simple'],
+      'fancy': ['elegante'],
+      'elegant': ['elegante'],
+      'stylish': ['elegante'],
+      'fashionable': ['de moda'],
+      'modern': ['moderno'],
+      'contemporary': ['contemporáneo'],
+      'current': ['actual'],
+      'present': ['presente'],
+      'past': ['pasado'],
+      'future': ['futuro'],
+      'ancient': ['antiguo'],
+      'historic': ['histórico'],
+      'traditional': ['tradicional'],
+      'classic': ['clásico'],
+      'vintage': ['vintage'],
+      'antique': ['antiguo'],
+      'cultural': ['cultural'],
+      'ethnic': ['étnico'],
+      'national': ['nacional'],
+      'international': ['internacional'],
+      'global': ['global'],
+      'worldwide': ['mundial'],
+      'universal': ['universal'],
+      'general': ['general'],
+      'specific': ['específico'],
+      'particular': ['particular'],
+      'special': ['especial'],
+      'unique': ['único'],
+      'rare': ['raro'],
+      'precious': ['precioso'],
+      'valuable': ['valioso'],
+      'worthless': ['sin valor'],
+      'priceless': ['invaluable'],
+      'cheap': ['barato'],
+      'expensive': ['caro'],
+      'costly': ['costoso'],
+      'affordable': ['asequible'],
+      'reasonable': ['razonable'],
+      'fair': ['justo'],
+      'unfair': ['injusto'],
+      'equal': ['igual'],
+      'unequal': ['desigual'],
+      'similar': ['similar'],
+      'different': ['diferente'],
+      'alike': ['parecido'],
+      'unlike': ['diferente'],
+      'opposite': ['opuesto'],
+      'reverse': ['reverso'],
+      'backward': ['hacia atrás'],
+      'forward': ['hacia adelante'],
+      'upward': ['hacia arriba'],
+      'downward': ['hacia abajo'],
+      'inward': ['hacia adentro'],
+      'outward': ['hacia afuera'],
+      'sideways': ['de lado'],
+      'diagonal': ['diagonal'],
+      'horizontal': ['horizontal'],
+      'vertical': ['vertical'],
+      'parallel': ['paralelo'],
+      'perpendicular': ['perpendicular'],
+      'straight': ['recto'],
+      'curved': ['curvo'],
+      'bent': ['doblado'],
+      'twisted': ['torcido'],
+      'round': ['redondo'],
+      'square': ['cuadrado'],
+      'rectangular': ['rectangular'],
+      'triangular': ['triangular'],
+      'circular': ['circular'],
+      'oval': ['ovalado'],
+      'flat': ['plano'],
+      'steep': ['empinado'],
+      'gentle': ['suave'],
+      'rough': ['áspero'],
+      'smooth': ['liso'],
+      'bumpy': ['con baches'],
+      'uneven': ['desigual'],
+      'level': ['nivelado'],
+      'sloped': ['inclinado'],
+      'tilted': ['inclinado'],
+      'crooked': ['torcido'],
+      'straight': ['derecho'],
+      'narrow': ['estrecho'],
+      'wide': ['ancho'],
+      'broad': ['amplio'],
+      'tight': ['ajustado'],
+      'loose': ['suelto'],
+      'slack': ['flojo'],
+      'tense': ['tenso'],
+      'relaxed': ['relajado'],
+      'flexible': ['flexible'],
+      'rigid': ['rígido'],
+      'stiff': ['rígido'],
+      'soft': ['suave'],
+      'hard': ['duro'],
+      'solid': ['sólido'],
+      'liquid': ['líquido'],
+      'gas': ['gas'],
+      'frozen': ['congelado'],
+      'melted': ['derretido'],
+      'boiled': ['hervido'],
+      'steamed': ['al vapor'],
+      'fried': ['frito'],
+      'baked': ['horneado'],
+      'grilled': ['a la parrilla'],
+      'roasted': ['asado'],
+      'raw': ['crudo'],
+      'cooked': ['cocido'],
+      'fresh': ['fresco'],
+      'stale': ['rancio'],
+      'spoiled': ['echado a perder'],
+      'rotten': ['podrido'],
+      'sour': ['agrio'],
+      'sweet': ['dulce'],
+      'bitter': ['amargo'],
+      'salty': ['salado'],
+      'spicy': ['picante'],
+      'mild': ['suave'],
+      'bland': ['insípido'],
+      'tasty': ['sabroso'],
+      'delicious': ['delicioso'],
+      'disgusting': ['asqueroso'],
+      'horrible': ['horrible'],
+      'awful': ['horrible'],
+      'terrible': ['terrible'],
+      'bad': ['malo'],
+      'good': ['bueno'],
+      'great': ['genial'],
+      'excellent': ['excelente'],
+      'perfect': ['perfecto'],
+      'wonderful': ['maravilloso'],
+      'amazing': ['increíble'],
+      'fantastic': ['fantástico'],
+      'incredible': ['increíble'],
+      'unbelievable': ['increíble'],
+      'surprising': ['sorprendente'],
+      'shocking': ['impactante'],
+      'stunning': ['impresionante'],
+      'impressive': ['impresionante'],
+      'remarkable': ['notable'],
+      'outstanding': ['destacado'],
+      'extraordinary': ['extraordinario'],
+      'exceptional': ['excepcional'],
+      'magnificent': ['magnífico'],
+      'splendid': ['espléndido'],
+      'superb': ['excelente'],
+      'terrific': ['estupendo'],
+      'marvelous': ['maravilloso'],
+      'fabulous': ['fabuloso'],
+      'gorgeous': ['hermoso'],
+      'stunning': ['impresionante'],
+      'breathtaking': ['impresionante'],
+      'spectacular': ['espectacular'],
+      'dramatic': ['dramático'],
+      'exciting': ['emocionante'],
+      'thrilling': ['emocionante'],
+      'interesting': ['interesante'],
+      'fascinating': ['fascinante'],
+      'captivating': ['cautivador'],
+      'engaging': ['atractivo'],
+      'entertaining': ['entretenido'],
+      'amusing': ['divertido'],
+      'funny': ['gracioso'],
+      'hilarious': ['divertidísimo'],
+      'ridiculous': ['ridículo'],
+      'silly': ['tonto'],
+      'stupid': ['estúpido'],
+      'foolish': ['tonto'],
+      'crazy': ['loco'],
+      'mad': ['loco'],
+      'insane': ['loco'],
+      'mental': ['mental'],
+      'psychological': ['psicológico'],
+      'emotional': ['emocional'],
+      'physical': ['físico'],
+      'spiritual': ['espiritual'],
+      'religious': ['religioso'],
+      'moral': ['moral'],
+      'ethical': ['ético'],
+      'honest': ['honesto'],
+      'truthful': ['veraz'],
+      'sincere': ['sincero'],
+      'genuine': ['genuino'],
+      'authentic': ['auténtico'],
+      'real': ['real'],
+      'actual': ['real'],
+      'true': ['verdadero'],
+      'false': ['falso'],
+      'fake': ['falso'],
+      'artificial': ['artificial'],
+      'synthetic': ['sintético'],
+      'natural': ['natural'],
+      'organic': ['orgánico'],
+      'pure': ['puro'],
+      'clean': ['limpio'],
+      'dirty': ['sucio'],
+      'filthy': ['sucio'],
+      'messy': ['desordenado'],
+      'tidy': ['ordenado'],
+      'neat': ['ordenado'],
+      'organized': ['organizado'],
+      'disorganized': ['desorganizado'],
+      'chaotic': ['caótico'],
+      'confused': ['confuso'],
+      'mixed': ['mezclado'],
+      'separate': ['separado'],
+      'divided': ['dividido'],
+      'united': ['unido'],
+      'connected': ['conectado'],
+      'disconnected': ['desconectado'],
+      'linked': ['enlazado'],
+      'related': ['relacionado'],
+      'unrelated': ['no relacionado'],
+      'relevant': ['relevante'],
+      'irrelevant': ['irrelevante'],
+      'appropriate': ['apropiado'],
+      'inappropriate': ['inapropiado'],
+      'suitable': ['adecuado'],
+      'unsuitable': ['inadecuado'],
+      'proper': ['apropiado'],
+      'improper': ['inapropiado'],
+      'correct': ['correcto'],
+      'incorrect': ['incorrecto'],
+      'right': ['correcto'],
+      'wrong': ['incorrecto'],
+      'accurate': ['preciso'],
+      'inaccurate': ['impreciso'],
+      'precise': ['preciso'],
+      'exact': ['exacto'],
+      'approximate': ['aproximado'],
+      'rough': ['aproximado'],
+      'detailed': ['detallado'],
+      'thorough': ['minucioso'],
+      'complete': ['completo'],
+      'incomplete': ['incompleto'],
+      'partial': ['parcial'],
+      'total': ['total'],
+      'entire': ['completo'],
+      'whole': ['entero'],
+      'full': ['lleno'],
+      'empty': ['vacío'],
+      'blank': ['en blanco'],
+      'filled': ['lleno'],
+      'stuffed': ['relleno'],
+      'packed': ['empacado'],
+      'crowded': ['lleno de gente'],
+      'busy': ['ocupado'],
+      'active': ['activo'],
+      'passive': ['pasivo'],
+      'aggressive': ['agresivo'],
+      'peaceful': ['pacífico'],
+      'violent': ['violento'],
+      'gentle': ['gentil'],
+      'rough': ['brusco'],
+      'harsh': ['duro'],
+      'severe': ['severo'],
+      'strict': ['estricto'],
+      'lenient': ['indulgente'],
+      'tolerant': ['tolerante'],
+      'intolerant': ['intolerante'],
+      'patient': ['paciente'],
+      'impatient': ['impaciente'],
+      'calm': ['calmado'],
+      'excited': ['emocionado'],
+      'nervous': ['nervioso'],
+      'anxious': ['ansioso'],
+      'worried': ['preocupado'],
+      'concerned': ['preocupado'],
+      'relaxed': ['relajado'],
+      'stressed': ['estresado'],
+      'tense': ['tenso'],
+      'comfortable': ['cómodo'],
+      'uncomfortable': ['incómodo'],
+      'convenient': ['conveniente'],
+      'inconvenient': ['inconveniente'],
+      'practical': ['práctico'],
+      'impractical': ['poco práctico'],
+      'useful': ['útil'],
+      'useless': ['inútil'],
+      'helpful': ['útil'],
+      'unhelpful': ['inútil'],
+      'beneficial': ['beneficioso'],
+      'harmful': ['dañino'],
+      'dangerous': ['peligroso'],
+      'safe': ['seguro'],
+      'risky': ['riesgoso'],
+      'secure': ['seguro'],
+      'insecure': ['inseguro'],
+      'protected': ['protegido'],
+      'unprotected': ['desprotegido'],
+      'vulnerable': ['vulnerable'],
+      'strong': ['fuerte'],
+      'weak': ['débil'],
+      'powerful': ['poderoso'],
+      'powerless': ['sin poder'],
+      'mighty': ['poderoso'],
+      'fragile': ['frágil'],
+      'delicate': ['delicado'],
+      'tough': ['resistente'],
+      'durable': ['duradero'],
+      'temporary': ['temporal'],
+      'permanent': ['permanente'],
+      'lasting': ['duradero'],
+      'brief': ['breve'],
+      'short': ['corto'],
+      'long': ['largo'],
+      'quick': ['rápido'],
+      'slow': ['lento'],
+      'fast': ['rápido'],
+      'rapid': ['rápido'],
+      'swift': ['rápido'],
+      'speedy': ['rápido'],
+      'gradual': ['gradual'],
+      'sudden': ['repentino'],
+      'immediate': ['inmediato'],
+      'instant': ['instantáneo'],
+      'delayed': ['retrasado'],
+      'late': ['tarde'],
+      'early': ['temprano'],
+      'prompt': ['puntual'],
+      'punctual': ['puntual'],
+      'timely': ['oportuno'],
+      'urgent': ['urgente'],
+      'emergency': ['emergencia'],
+      'crisis': ['crisis'],
+      'disaster': ['desastre'],
+      'accident': ['accidente'],
+      'incident': ['incidente'],
+      'event': ['evento'],
+      'occasion': ['ocasión'],
+      'situation': ['situación'],
+      'condition': ['condición'],
+      'circumstance': ['circunstancia'],
+      'case': ['caso'],
+      'instance': ['instancia'],
+      'example': ['ejemplo'],
+      'sample': ['muestra'],
+      'model': ['modelo'],
+      'pattern': ['patrón'],
+      'design': ['diseño'],
+      'style': ['estilo'],
+      'fashion': ['moda'],
+      'trend': ['tendencia'],
+      'custom': ['costumbre'],
+      'tradition': ['tradición'],
+      'habit': ['hábito'],
+      'routine': ['rutina'],
+      'procedure': ['procedimiento'],
+      'process': ['proceso'],
+      'method': ['método'],
+      'technique': ['técnica'],
+      'approach': ['enfoque'],
+      'strategy': ['estrategia'],
+      'plan': ['plan'],
+      'scheme': ['esquema'],
+      'system': ['sistema'],
+      'structure': ['estructura'],
+      'organization': ['organización'],
+      'arrangement': ['arreglo'],
+      'order': ['orden'],
+      'sequence': ['secuencia'],
+      'series': ['serie'],
+      'chain': ['cadena'],
+      'link': ['enlace'],
+      'connection': ['conexión'],
+      'relationship': ['relación'],
+      'association': ['asociación'],
+      'partnership': ['sociedad'],
+      'cooperation': ['cooperación'],
+      'collaboration': ['colaboración'],
+      'teamwork': ['trabajo en equipo'],
+      'competition': ['competencia'],
+      'contest': ['concurso'],
+      'race': ['carrera'],
+      'match': ['partido'],
+      'game': ['juego'],
+      'sport': ['deporte'],
+      'hobby': ['pasatiempo'],
+      'interest': ['interés'],
+      'passion': ['pasión'],
+      'enthusiasm': ['entusiasmo'],
+      'excitement': ['emoción'],
+      'joy': ['alegría'],
+      'happiness': ['felicidad'],
+      'pleasure': ['placer'],
+      'satisfaction': ['satisfacción'],
+      'contentment': ['satisfacción'],
+      'peace': ['paz'],
+      'tranquility': ['tranquilidad'],
+      'serenity': ['serenidad'],
+      'calmness': ['calma'],
+      'quietness': ['quietud'],
+      'silence': ['silencio'],
+      'noise': ['ruido'],
+      'sound': ['sonido'],
+      'voice': ['voz'],
+      'speech': ['discurso'],
+      'talk': ['charla'],
+      'conversation': ['conversación'],
+      'chat': ['charla'],
+      'discussion': ['discusión'],
+      'dialogue': ['diálogo'],
+      'communication': ['comunicación'],
+      'contact': ['contacto'],
+      'touch': ['tocar'],
+      'feel': ['sentir'],
+      'sensation': ['sensación'],
+      'feeling': ['sentimiento'],
+      'emotion': ['emoción'],
+      'mood': ['estado de ánimo'],
+      'spirit': ['espíritu'],
+      'soul': ['alma'],
+      'character': ['carácter'],
+      'personality': ['personalidad'],
+      'nature': ['naturaleza'],
+      'behavior': ['comportamiento'],
+      'attitude': ['actitud'],
+      'approach': ['enfoque'],
+      'manner': ['manera'],
+      'way': ['manera'],
+      'style': ['estilo'],
+      'fashion': ['moda'],
+      'culture': ['cultura'],
+      'civilization': ['civilización'],
+      'society': ['sociedad'],
+      'community': ['comunidad'],
+      'population': ['población'],
+      'crowd': ['multitud'],
+      'audience': ['audiencia'],
+      'public': ['público'],
+      'viewer': ['espectador'],
+      'observer': ['observador'],
+      'witness': ['testigo'],
+      'participant': ['participante'],
+      'member': ['miembro'],
+      'citizen': ['ciudadano'],
+      'resident': ['residente'],
+      'inhabitant': ['habitante'],
+      'native': ['nativo'],
+      'foreigner': ['extranjero'],
+      'stranger': ['extraño'],
+      'visitor': ['visitante'],
+      'guest': ['invitado'],
+      'host': ['anfitrión'],
+      'owner': ['dueño'],
+      'possessor': ['poseedor'],
+      'holder': ['portador'],
+      'keeper': ['guardián'],
+      'guardian': ['guardián'],
+      'protector': ['protector'],
+      'defender': ['defensor'],
+      'supporter': ['seguidor'],
+      'follower': ['seguidor'],
+      'leader': ['líder'],
+      'chief': ['jefe'],
+      'head': ['cabeza'],
+      'boss': ['jefe'],
+      'manager': ['gerente'],
+      'supervisor': ['supervisor'],
+      'director': ['director'],
+      'president': ['presidente'],
+      'king': ['rey'],
+      'queen': ['reina'],
+      'prince': ['príncipe'],
+      'princess': ['princesa'],
+      'emperor': ['emperador'],
+      'empress': ['emperatriz'],
+      'ruler': ['gobernante'],
+      'government': ['gobierno'],
+      'authority': ['autoridad'],
+      'power': ['poder'],
+      'control': ['control'],
+      'influence': ['influencia'],
+      'effect': ['efecto'],
+      'impact': ['impacto'],
+      'consequence': ['consecuencia'],
+      'result': ['resultado'],
+      'outcome': ['resultado'],
+      'end': ['fin'],
+      'conclusion': ['conclusión'],
+      'finish': ['final'],
+      'completion': ['terminación'],
+      'achievement': ['logro'],
+      'accomplishment': ['logro'],
+      'success': ['éxito'],
+      'victory': ['victoria'],
+      'triumph': ['triunfo'],
+      'win': ['ganar'],
+      'defeat': ['derrota'],
+      'loss': ['pérdida'],
+      'failure': ['fracaso'],
+      'mistake': ['error'],
+      'fault': ['falta'],
+      'defect': ['defecto'],
+      'flaw': ['falla'],
+      'weakness': ['debilidad'],
+      'strength': ['fortaleza'],
+      'advantage': ['ventaja'],
+      'disadvantage': ['desventaja'],
+      'benefit': ['beneficio'],
+      'profit': ['ganancia'],
+      'gain': ['ganancia'],
+      'loss': ['pérdida'],
+      'damage': ['daño'],
+      'harm': ['daño'],
+      'injury': ['lesión'],
+      'hurt': ['lastimar'],
+      'pain': ['dolor'],
+      'suffering': ['sufrimiento'],
+      'agony': ['agonía'],
+      'torture': ['tortura'],
+      'punishment': ['castigo'],
+      'penalty': ['pena'],
+      'fine': ['multa'],
+      'reward': ['recompensa'],
+      'prize': ['premio'],
+      'award': ['premio'],
+      'gift': ['regalo'],
+      'present': ['regalo'],
+      'donation': ['donación'],
+      'contribution': ['contribución'],
+      'payment': ['pago'],
+      'fee': ['tarifa'],
+      'charge': ['cargo'],
+      'cost': ['costo'],
+      'expense': ['gasto'],
+      'budget': ['presupuesto'],
+      'finance': ['finanzas'],
+      'economy': ['economía'],
+      'wealth': ['riqueza'],
+      'fortune': ['fortuna'],
+      'treasure': ['tesoro'],
+      'value': ['valor'],
+      'worth': ['valor'],
+      'price': ['precio'],
+      'rate': ['tasa'],
+      'percentage': ['porcentaje'],
+      'proportion': ['proporción'],
+      'ratio': ['razón'],
+      'fraction': ['fracción'],
+      'part': ['parte'],
+      'portion': ['porción'],
+      'section': ['sección'],
+      'segment': ['segmento'],
+      'piece': ['pieza'],
+      'bit': ['pedazo'],
+      'fragment': ['fragmento'],
+      'chunk': ['trozo'],
+      'slice': ['rebanada'],
+      'layer': ['capa'],
+      'level': ['nivel'],
+      'degree': ['grado'],
+      'stage': ['etapa'],
+      'phase': ['fase'],
+      'step': ['paso'],
+      'measure': ['medida'],
+      'action': ['acción'],
+      'move': ['movimiento'],
+      'gesture': ['gesto'],
+      'signal': ['señal'],
+      'sign': ['señal'],
+      'symbol': ['símbolo'],
+      'mark': ['marca'],
+      'label': ['etiqueta'],
+      'tag': ['etiqueta'],
+      'name': ['nombre'],
+      'title': ['título'],
+      'heading': ['encabezado'],
+      'caption': ['subtítulo'],
+      'description': ['descripción'],
+      'explanation': ['explicación'],
+      'definition': ['definición'],
+      'meaning': ['significado'],
+      'sense': ['sentido'],
+      'purpose': ['propósito'],
+      'intention': ['intención'],
+      'aim': ['objetivo'],
+      'goal': ['meta'],
+      'target': ['objetivo'],
+      'destination': ['destino'],
+      'end': ['fin'],
+      'limit': ['límite'],
+      'boundary': ['límite'],
+      'border': ['frontera'],
+      'edge': ['borde'],
+      'margin': ['margen'],
+      'frame': ['marco'],
+      'outline': ['contorno'],
+      'shape': ['forma'],
+      'form': ['forma'],
+      'figure': ['figura'],
+      'image': ['imagen'],
+      'picture': ['imagen'],
+      'photo': ['foto'],
+      'photograph': ['fotografía'],
+      'portrait': ['retrato'],
+      'landscape': ['paisaje'],
+      'scenery': ['paisaje'],
+      'view': ['vista'],
+      'sight': ['vista'],
+      'scene': ['escena'],
+      'setting': ['entorno'],
+      'environment': ['ambiente'],
+      'surroundings': ['alrededores'],
+      'atmosphere': ['atmósfera'],
+      'mood': ['ambiente'],
+      'feeling': ['sensación'],
+      'impression': ['impresión'],
+      'opinion': ['opinión'],
+      'judgment': ['juicio'],
+      'decision': ['decisión'],
+      'choice': ['elección'],
+      'selection': ['selección'],
+      'option': ['opción'],
+      'alternative': ['alternativa'],
+      'possibility': ['posibilidad'],
+      'chance': ['oportunidad'],
+      'opportunity': ['oportunidad'],
+      'occasion': ['ocasión'],
+      'moment': ['momento'],
+      'instant': ['instante'],
+      'second': ['segundo'],
+      'minute': ['minuto'],
+      'hour': ['hora'],
+      'period': ['período'],
+      'duration': ['duración'],
+      'length': ['duración'],
+      'span': ['lapso'],
+      'interval': ['intervalo'],
+      'break': ['descanso'],
+      'pause': ['pausa'],
+      'rest': ['descanso'],
+      'stop': ['parada'],
+      'halt': ['alto'],
+      'delay': ['retraso'],
+      'wait': ['espera'],
+      'hurry': ['prisa'],
+      'rush': ['prisa'],
+      'speed': ['velocidad'],
+      'pace': ['ritmo'],
+      'rhythm': ['ritmo'],
+      'beat': ['ritmo'],
+      'pulse': ['pulso'],
+      'heartbeat': ['latido'],
+      'breath': ['respiración'],
+      'life': ['vida'],
+      'existence': ['existencia'],
+      'being': ['ser'],
+      'creature': ['criatura'],
+      'living': ['vivo'],
+      'alive': ['vivo'],
+      'dead': ['muerto'],
+      'death': ['muerte'],
+      'birth': ['nacimiento'],
+      'baby': ['bebé'],
+      'infant': ['bebé'],
+      'child': ['niño'],
+      'kid': ['niño'],
+      'youth': ['joven'],
+      'adolescent': ['adolescente'],
+      'teenager': ['adolescente'],
+      'adult': ['adulto'],
+      'grown-up': ['adulto'],
+      'elder': ['mayor'],
+      'senior': ['mayor'],
+      'old': ['viejo'],
+      'elderly': ['anciano'],
+      'aged': ['envejecido'],
+      'young': ['joven'],
+      'youthful': ['juvenil'],
+      'fresh': ['fresco'],
+      'new': ['nuevo'],
+      'recent': ['reciente'],
+      'latest': ['último'],
+      'current': ['actual'],
+      'present': ['presente'],
+      'contemporary': ['contemporáneo'],
+      'modern': ['moderno'],
+      'up-to-date': ['actualizado'],
+      'fashionable': ['de moda'],
+      'trendy': ['moderno'],
+      'stylish': ['elegante'],
+      'chic': ['elegante'],
+      'elegant': ['elegante'],
+      'sophisticated': ['sofisticado'],
+      'refined': ['refinado'],
+      'polished': ['pulido'],
+      'smooth': ['suave'],
+      'sleek': ['elegante'],
+      'glossy': ['brillante'],
+      'shiny': ['brillante'],
+      'bright': ['brillante'],
+      'brilliant': ['brillante'],
+      'dazzling': ['deslumbrante'],
+      'glowing': ['brillante'],
+      'radiant': ['radiante'],
+      'luminous': ['luminoso'],
+      'illuminated': ['iluminado'],
+      'lit': ['iluminado'],
+      'lighted': ['iluminado'],
+      'dark': ['oscuro'],
+      'dim': ['tenue'],
+      'faint': ['débil'],
+      'pale': ['pálido'],
+      'colorless': ['sin color'],
+      'transparent': ['transparente'],
+      'clear': ['claro'],
+      'obvious': ['obvio'],
+      'evident': ['evidente'],
+      'apparent': ['aparente'],
+      'visible': ['visible'],
+      'noticeable': ['notable'],
+      'remarkable': ['notable'],
+      'outstanding': ['destacado'],
+      'exceptional': ['excepcional'],
+      'extraordinary': ['extraordinario'],
+      'special': ['especial'],
+      'unique': ['único'],
+      'rare': ['raro'],
+      'unusual': ['inusual'],
+      'strange': ['extraño'],
+      'odd': ['extraño'],
+      'weird': ['raro'],
+      'bizarre': ['extraño'],
+      'curious': ['curioso'],
+      'mysterious': ['misterioso'],
+      'puzzling': ['desconcertante'],
+      'confusing': ['confuso'],
+      'unclear': ['poco claro'],
+      'vague': ['vago'],
+      'ambiguous': ['ambiguo'],
+      'uncertain': ['incierto'],
+      'doubtful': ['dudoso'],
+      'questionable': ['cuestionable'],
+      'suspicious': ['sospechoso'],
+      'dubious': ['dudoso'],
+      'reliable': ['confiable'],
+      'trustworthy': ['confiable'],
+      'dependable': ['confiable'],
+      'faithful': ['fiel'],
+      'loyal': ['leal'],
+      'devoted': ['devoto'],
+      'dedicated': ['dedicado'],
+      'committed': ['comprometido'],
+      'determined': ['determinado'],
+      'persistent': ['persistente'],
+      'stubborn': ['terco'],
+      'obstinate': ['obstinado'],
+      'flexible': ['flexible'],
+      'adaptable': ['adaptable'],
+      'adjustable': ['ajustable'],
+      'changeable': ['cambiable'],
+      'variable': ['variable'],
+      'constant': ['constante'],
+      'stable': ['estable'],
+      'steady': ['estable'],
+      'firm': ['firme'],
+      'solid': ['sólido'],
+      'secure': ['seguro'],
+      'safe': ['seguro'],
+      'protected': ['protegido'],
+      'sheltered': ['protegido'],
+      'covered': ['cubierto'],
+      'hidden': ['oculto'],
+      'concealed': ['oculto'],
+      'secret': ['secreto'],
+      'private': ['privado'],
+      'personal': ['personal'],
+      'individual': ['individual'],
+      'single': ['soltero'],
+      'alone': ['solo'],
+      'lonely': ['solitario'],
+      'isolated': ['aislado'],
+      'separate': ['separado'],
+      'apart': ['aparte'],
+      'distant': ['distante'],
+      'far': ['lejos'],
+      'remote': ['remoto'],
+      'close': ['cerca'],
+      'near': ['cerca'],
+      'nearby': ['cercano'],
+      'adjacent': ['adyacente'],
+      'next': ['siguiente'],
+      'neighboring': ['vecino'],
+      'surrounding': ['circundante'],
+      'around': ['alrededor'],
+      'about': ['sobre'],
+      'concerning': ['concerniente'],
+      'regarding': ['con respecto a'],
+      'relating': ['relacionado'],
+      'connected': ['conectado'],
+      'linked': ['enlazado'],
+      'associated': ['asociado'],
+      'related': ['relacionado'],
+      'relevant': ['relevante'],
+      'appropriate': ['apropiado'],
+      'suitable': ['adecuado'],
+      'fitting': ['apropiado'],
+      'proper': ['apropiado'],
+      'right': ['correcto'],
+      'correct': ['correcto'],
+      'accurate': ['preciso'],
+      'exact': ['exacto'],
+      'precise': ['preciso'],
+      'specific': ['específico'],
+      'particular': ['particular'],
+      'detailed': ['detallado'],
+      'thorough': ['minucioso'],
+      'complete': ['completo'],
+      'comprehensive': ['completo'],
+      'extensive': ['extenso'],
+      'broad': ['amplio'],
+      'wide': ['ancho'],
+      'vast': ['vasto'],
+      'huge': ['enorme'],
+      'enormous': ['enorme'],
+      'immense': ['inmenso'],
+      'massive': ['masivo'],
+      'giant': ['gigante'],
+      'gigantic': ['gigantesco'],
+      'tremendous': ['tremendo'],
+      'colossal': ['colosal'],
+      'magnificent': ['magnífico'],
+      'grand': ['grande'],
+      'majestic': ['majestuoso'],
+      'impressive': ['impresionante'],
+      'striking': ['llamativo'],
+      'remarkable': ['notable'],
+      'notable': ['notable'],
+      'significant': ['significativo'],
+      'important': ['importante'],
+      'major': ['mayor'],
+      'principal': ['principal'],
+      'main': ['principal'],
+      'primary': ['primario'],
+      'chief': ['principal'],
+      'leading': ['principal'],
+      'top': ['superior'],
+      'highest': ['más alto'],
+      'supreme': ['supremo'],
+      'ultimate': ['último'],
+      'final': ['final'],
+      'last': ['último'],
+      'latest': ['último'],
+      'recent': ['reciente'],
+      'fresh': ['fresco'],
+      'brand-new': ['nuevo'],
+      'original': ['original'],
+      'initial': ['inicial'],
       'first': ['primero'],
-      'ticket': ['boleto'],
-      'menu': ['menú'],
-      'order': ['pedido', 'ordenar'],
-      'tip': ['propina'],
-      'serviette': ['servilleta'],
-      'make': ['hacer'],
-      'pizza': ['pizza'],
-      'tacos': ['tacos'],
-      'sushi': ['sushi'],
-      'paella': ['paella'],
-      'lasagna': ['lasaña'],
-      'curry': ['curry'],
-      'empanadas': ['empanadas'],
-      'hot dog': ['perro caliente'],
-      'ramen': ['ramen'],
-      'falafel': ['falafel'],
-      'kebab': ['kebab'],
-      'arepas': ['arepas'],
-      'goulash': ['goulash'],
-      'tamales': ['tamales'],
-      'pho': ['pho'],
-      'bibimbap': ['bibimbap'],
-      'can i go to the bathroom': ['puedo ir al baño'],
-      'may i borrow a pencil': ['puedo pedir prestado un lápiz'],
-      'i don\'t understand': ['no entiendo'],
-      'can you repeat that please': ['puedes repetir eso por favor'],
-      'what page are we on': ['en qué página estamos'],
-      'hello good evening i want a table please': ['hola buenas noches quiero una mesa por favor'],
-      'hello good evening yes here is your table': ['hola buenas noches sí aquí está tu mesa'],
-      'hello want do you want': ['hola qué quieres'],
-      'hi i want a hamburger please': ['hola quiero una hamburguesa por favor'],
-      'yes we got a hamburger': ['sí tenemos una hamburguesa'],
-      'here is your hamburger': ['aquí está tu hamburguesa'],
-      'you\'re welcome': ['de nada'],
-      'how much is the hamburger': ['cuánto cuesta la hamburguesa'],
-      'seventy eight dollars': ['setenta y ocho dólares'],
-      'here is the money': ['aquí está el dinero'],
-      'here is the tip': ['aquí está la propina'],
-      'good bye': ['adiós']
-    };
-    const wordTypes = {
-      'hello': 'noun',
-      'hi': 'noun',
-      'goodbye': 'noun',
-      'please': 'adverb',
-      'thank you': 'phrase',
-      'sorry': 'noun',
-      'good morning': 'phrase',
-      'good night': 'phrase',
-      'am': 'verb',
-      'is': 'verb',
-      'are': 'verb',
-      'have': 'verb',
-      'go': 'verb',
-      'come': 'verb',
-      'eat': 'verb',
-      'drink': 'verb',
-      'run': 'verb',
-      'walk': 'verb',
-      'read': 'verb',
-      'write': 'verb',
-      'speak': 'verb',
-      'listen': 'verb',
-      'see': 'verb',
-      'look': 'verb',
-      'play': 'verb',
-      'study': 'verb',
-      'work': 'verb',
-      'sleep': 'verb',
-      'house': 'noun',
-      'car': 'noun',
-      'dog': 'noun',
-      'cat': 'noun',
-      'bird': 'noun',
-      'fish': 'noun',
-      'tree': 'noun',
-      'book': 'noun',
-      'school': 'noun',
-      'teacher': 'noun',
-      'student': 'noun',
-      'friend': 'noun',
-      'family': 'noun',
-      'mother': 'noun',
-      'father': 'noun',
-      'brother': 'noun',
-      'sister': 'noun',
-      'food': 'noun',
-      'water': 'noun',
-      'sun': 'noun',
-      'moon': 'noun',
-      'star': 'noun',
-      'sky': 'noun',
-      'day': 'noun',
-      'night': 'noun',
-      'good': 'adjective',
-      'bad': 'adjective',
-      'big': 'adjective',
-      'small': 'adjective',
-      'happy': 'adjective',
-      'sad': 'adjective',
-      'beautiful': 'adjective',
-      'ugly': 'adjective',
-      'hot': 'adjective',
-      'cold': 'adjective',
-      'new': 'adjective',
-      'old': 'adjective',
-      'fast': 'adjective',
-      'slow': 'adjective',
-      'red': 'adjective',
-      'blue': 'adjective',
-      'green': 'adjective',
-      'yellow': 'adjective',
-      'black': 'adjective',
-      'white': 'adjective',
-      'one': 'noun',
-      'two': 'noun',
-      'three': 'noun',
-      'four': 'noun',
-      'five': 'noun',
-      'monday': 'noun',
-      'tuesday': 'noun',
-      'wednesday': 'noun',
-      'thursday': 'noun',
-      'friday': 'noun',
-      'saturday': 'noun',
-      'sunday': 'noun',
-      'city': 'noun',
-      'park': 'noun',
-      'beach': 'noun',
-      'mountain': 'noun',
-      'river': 'noun',
-      'forest': 'noun',
-      'lollypop': 'noun',
-      'stay': 'verb',
-      'smile': 'verb',
-      'sick': 'adjective',
-      'table': 'noun',
-      'also': 'adverb',
-      'computer': 'noun',
-      'i am sorry': 'phrase',
-      'look at me': 'phrase',
-      'fill': 'verb',
-      'full': 'adjective',
-      'better': 'adjective',
-      'middle': 'adjective',
-      'angry': 'adjective',
-      'eh': 'noun',
-      'how': 'adverb',
-      'how much': 'phrase',
-      'where': 'adverb',
-      'when': 'adverb',
-      'this': 'adjective',
-      'ask': 'verb',
-      'say': 'verb',
-      'our': 'adjective',
-      'with': 'preposition',
-      'on': 'preposition',
-      'open': 'verb',
-      'ruler': 'noun',
-      'very': 'adverb',
-      'what': 'adverb',
-      'what is your name': 'phrase',
-      'i want': 'phrase',
-      'hamburger': 'noun',
-      'games': 'noun',
-      'apple': 'noun',
-      'are you': 'phrase',
-      'girl': 'noun',
-      'boy': 'noun',
-      'woman': 'noun',
-      'man': 'noun',
-      'soccer': 'noun',
-      'basketball': 'noun',
-      'tennis': 'noun',
-      'golf': 'noun',
-      'rugby': 'noun',
-      'cricket': 'noun',
-      'football': 'noun',
-      'swimming': 'noun',
-      'cycling': 'noun',
-      'boxing': 'noun',
-      'hacking': 'noun',
-      'running': 'noun',
-      'gymnastics': 'noun',
-      'rhythmic': 'adjective',
-      'equestrian': 'adjective',
-      'sailing': 'noun',
-      'shooting': 'noun',
-      'snowboarding': 'noun',
-      'wakeboard': 'noun',
-      'watersurf': 'noun',
-      'parachuting': 'noun',
-      'kitesurfing': 'noun',
-      'climbing': 'noun',
-      'ping pong': 'noun',
-      'jogging': 'noun',
-      'waterpolo': 'noun',
-      'handball': 'noun',
-      'ice hockey': 'noun',
-      'martial arts': 'noun',
-      'wrestling': 'noun',
-      'where you from': 'phrase',
-      'i want a banana and an apple': 'phrase',
-      'i want a hamburger and a car please': 'phrase',
-      'good morning i want play games and apple please': 'phrase',
-      'how much is this bag': 'phrase',
-      'bag': 'noun',
-      'eraser': 'noun',
-      'liquid paper': 'noun',
-      'backpack': 'noun',
-      'laptop': 'noun',
-      'wallet': 'noun',
-      'watch': 'noun',
-      'notebook': 'noun',
-      'pencil': 'noun',
-      'pen': 'noun',
-      'pencil-case': 'noun',
-      'scissors': 'noun',
-      'stapler': 'noun',
-      'glue': 'noun',
-      'desk': 'noun',
-      'chair': 'noun',
-      'banana': 'noun',
-      'orange': 'noun',
-      'strawberry': 'noun',
-      'pineapple': 'noun',
-      'watermelon': 'noun',
-      'grapes': 'noun',
-      'mango': 'noun',
-      'peach': 'noun',
-      'pear': 'noun',
-      'blueberry': 'noun',
-      'raspberry': 'noun',
-      'blackberry': 'noun',
-      'lime': 'noun',
-      'lemon': 'noun',
-      'coconut': 'noun',
-      'avocado': 'noun',
-      'papaya': 'noun',
-      'guava': 'noun',
-      'carrot': 'noun',
-      'potato': 'noun',
-      'tomato': 'noun',
-      'onion': 'noun',
-      'lettuce': 'noun',
-      'broccoli': 'noun',
-      'spinach': 'noun',
-      'cucumber': 'noun',
-      'pepper': 'noun',
-      'garlic': 'noun',
-      'zucchini': 'noun',
-      'eggplant': 'noun',
-      'sweet potato': 'noun',
-      'green beans': 'noun',
-      'peas': 'noun',
-      'beet': 'noun',
-      'pumpkin': 'noun',
-      'celery': 'noun',
-      'artichoke': 'noun',
-      'beef': 'noun',
-      'chicken': 'noun',
-      'pork': 'noun',
-      'lamb': 'noun',
-      'bacon': 'noun',
-      'sausage': 'noun',
-      'ham': 'noun',
-      'duck': 'noun',
-      'goat': 'noun',
-      'veal': 'noun',
-      'meatballs': 'noun',
-      'ribs': 'noun',
-      'steak': 'noun',
-      'ground beef': 'noun',
-      'shrimp': 'noun',
-      'crab': 'noun',
-      'lobster': 'noun',
-      'octopus': 'noun',
-      'squid': 'noun',
-      'mussels': 'noun',
-      'clams': 'noun',
-      'anchovy': 'noun',
-      'herring': 'noun',
-      'tuna': 'noun',
-      'salmon': 'noun',
-      'sea bass': 'noun',
-      'trout': 'noun',
-      'rice': 'noun',
-      'bread': 'noun',
-      'pasta': 'noun',
-      'oats': 'noun',
-      'corn': 'noun',
-      'barley': 'noun',
-      'wheat': 'noun',
-      'quinoa': 'noun',
-      'couscous': 'noun',
-      'rye': 'noun',
-      'tortilla': 'noun',
-      'crackers': 'noun',
-      'milk': 'noun',
-      'cheese': 'noun',
-      'yogurt': 'noun',
-      'butter': 'noun',
-      'cream': 'noun',
-      'sour cream': 'noun',
-      'evaporated milk': 'noun',
-      'condensed milk': 'noun',
-      'juice': 'noun',
-      'soda': 'noun',
-      'coffee': 'noun',
-      'tea': 'noun',
-      'beer': 'noun',
-      'wine': 'noun',
-      'smoothie': 'noun',
-      'milkshake': 'noun',
-      'cocktail': 'noun',
-      'sparkling water': 'noun',
-      'hot chocolate': 'noun',
-      'cake': 'noun',
-      'ice cream': 'noun',
-      'cookies': 'noun',
-      'pudding': 'noun',
-      'pie': 'noun',
-      'chocolate': 'noun',
-      'doughnut': 'noun',
-      'muffin': 'noun',
-      'custard': 'noun',
-      'jelly': 'noun',
-      'pay': 'verb',
-      'at': 'preposition',
-      'first': 'adjective',
-      'ticket': 'noun',
-      'menu': 'noun',
-      'order': 'noun',
-      'tip': 'noun',
-      'serviette': 'noun',
-      'make': 'verb',
-      'pizza': 'noun',
-      'tacos': 'noun',
-      'sushi': 'noun',
-      'paella': 'noun',
-      'lasagna': 'noun',
-      'curry': 'noun',
-      'empanadas': 'noun',
-      'hot dog': 'noun',
-      'ramen': 'noun',
-      'falafel': 'noun',
-      'kebab': 'noun',
-      'arepas': 'noun',
-      'goulash': 'noun',
-      'tamales': 'noun',
-      'pho': 'noun',
-      'bibimbap': 'noun',
-      'can i go to the bathroom': 'phrase',
-      'may i borrow a pencil': 'phrase',
-      'i don\'t understand': 'phrase',
-      'can you repeat that please': 'phrase',
-      'what page are we on': 'phrase',
-      'hello good evening i want a table please': 'phrase',
-      'hello good evening yes here is your table': 'phrase',
-      'hello want do you want': 'phrase',
-      'hi i want a hamburger please': 'phrase',
-      'yes we got a hamburger': 'phrase',
-      'here is your hamburger': 'phrase',
-      'you\'re welcome': 'phrase',
-      'how much is the hamburger': 'phrase',
-      'seventy eight dollars': 'phrase',
-      'here is the money': 'phrase',
-      'here is the tip': 'phrase',
-      'good bye': 'phrase'
+      'earliest': ['más temprano'],
+      'previous': ['anterior'],
+      'former': ['anterior'],
+      'past': ['pasado'],
+      'old': ['viejo'],
+      'ancient': ['antiguo'],
+      'historic': ['histórico'],
+      'traditional': ['tradicional'],
+      'conventional': ['convencional'],
+      'standard': ['estándar'],
+      'regular': ['regular'],
+      'normal': ['normal'],
+      'ordinary': ['ordinario'],
+      'common': ['común'],
+      'usual': ['usual'],
+      'typical': ['típico'],
+      'average': ['promedio'],
+      'medium': ['medio'],
+      'moderate': ['moderado'],
+      'mild': ['suave'],
+      'gentle': ['suave'],
+      'soft': ['suave'],
+      'tender': ['tierno'],
+      'delicate': ['delicado'],
+      'fragile': ['frágil'],
+      'weak': ['débil'],
+      'feeble': ['débil'],
+      'frail': ['frágil'],
+      'brittle': ['frágil'],
+      'breakable': ['frágil'],
+      'sturdy': ['resistente'],
+      'robust': ['robusto'],
+      'strong': ['fuerte'],
+      'powerful': ['poderoso'],
+      'mighty': ['poderoso'],
+      'intense': ['intenso'],
+      'severe': ['severo'],
+      'extreme': ['extremo'],
+      'radical': ['radical'],
+      'drastic': ['drástico'],
+      'dramatic': ['dramático'],
+      'striking': ['llamativo'],
+      'vivid': ['vívido'],
+      'lively': ['animado'],
+      'animated': ['animado'],
+      'energetic': ['enérgico'],
+      'vigorous': ['vigoroso'],
+      'dynamic': ['dinámico'],
+      'active': ['activo'],
+      'busy': ['ocupado'],
+      'hectic': ['agitado'],
+      'frantic': ['frenético'],
+      'frenzied': ['frenético'],
+      'wild': ['salvaje'],
+      'crazy': ['loco'],
+      'mad': ['loco'],
+      'insane': ['loco'],
+      'ridiculous': ['ridículo'],
+      'absurd': ['absurdo'],
+      'nonsensical': ['sin sentido'],
+      'silly': ['tonto'],
+      'foolish': ['tonto'],
+      'stupid': ['estúpido'],
+      'dumb': ['tonto'],
+      'ignorant': ['ignorante'],
+      'uninformed': ['desinformado'],
+      'unaware': ['inconsciente'],
+      'unconscious': ['inconsciente'],
+      'asleep': ['dormido'],
+      'awake': ['despierto'],
+      'alert': ['alerta'],
+      'aware': ['consciente'],
+      'conscious': ['consciente'],
+      'mindful': ['consciente'],
+      'careful': ['cuidadoso'],
+      'cautious': ['cauteloso'],
+      'wary': ['cauteloso'],
+      'suspicious': ['sospechoso'],
+      'doubtful': ['dudoso'],
+      'skeptical': ['escéptico'],
+      'confident': ['confiado'],
+      'sure': ['seguro'],
+      'certain': ['cierto'],
+      'positive': ['positivo'],
+      'negative': ['negativo'],
+      'optimistic': ['optimista'],
+      'pessimistic': ['pesimista'],
+      'hopeful': ['esperanzado'],
+      'hopeless': ['sin esperanza'],
+      'desperate': ['desesperado'],
+      'helpless': ['indefenso'],
+      'powerless': ['impotente'],
+      'capable': ['capaz'],
+      'able': ['capaz'],
+      'competent': ['competente'],
+      'skilled': ['hábil'],
+      'talented': ['talentoso'],
+      'gifted': ['dotado'],
+      'clever': ['inteligente'],
+      'smart': ['inteligente'],
+      'intelligent': ['inteligente'],
+      'bright': ['brillante'],
+      'brilliant': ['brillante'],
+      'genius': ['genio'],
+      'wise': ['sabio'],
+      'knowledgeable': ['conocedor'],
+      'educated': ['educado'],
+      'learned': ['erudito'],
+      'scholarly': ['académico'],
+      'academic': ['académico'],
+      'intellectual': ['intelectual'],
+      'thoughtful': ['reflexivo'],
+      'considerate': ['considerado'],
+      'kind': ['amable'],
+      'nice': ['agradable'],
+      'pleasant': ['agradable'],
+      'friendly': ['amigable'],
+      'warm': ['cálido'],
+      'welcoming': ['acogedor'],
+      'hospitable': ['hospitalario'],
+      'generous': ['generoso'],
+      'giving': ['generoso'],
+      'charitable': ['caritativo'],
+      'helpful': ['útil'],
+      'supportive': ['solidario'],
+      'encouraging': ['alentador'],
+      'motivating': ['motivador'],
+      'inspiring': ['inspirador'],
+      'uplifting': ['edificante'],
+      'positive': ['positivo'],
+      'constructive': ['constructivo'],
+      'productive': ['productivo'],
+      'effective': ['efectivo'],
+      'efficient': ['eficiente'],
+      'successful': ['exitoso'],
+      'triumphant': ['triunfante'],
+      'victorious': ['victorioso'],
+      'winning': ['ganador'],
+      'champion': ['campeón'],
+      'hero': ['héroe'],
+      'heroine': ['heroína'],
+      'star': ['estrella'],
+      'celebrity': ['celebridad'],
+      'famous': ['famoso'],
+      'well-known': ['conocido'],
+      'popular': ['popular'],
+      'beloved': ['querido'],
+      'adored': ['adorado'],
+      'cherished': ['querido'],
+      'treasured': ['atesorado'],
+      'precious': ['precioso'],
+      'valuable': ['valioso'],
+      'priceless': ['invaluable'],
+      'worthless': ['sin valor'],
+      'useless': ['inútil'],
+      'meaningless': ['sin sentido'],
+      'pointless': ['sin sentido'],
+      'senseless': ['sin sentido'],
+      'unreasonable': ['irrazonable'],
+      'illogical': ['ilógico'],
+      'irrational': ['irracional'],
+      'emotional': ['emocional'],
+      'sentimental': ['sentimental'],
+      'romantic': ['romántico'],
+      'passionate': ['apasionado'],
+      'intense': ['intenso'],
+      'deep': ['profundo'],
+      'profound': ['profundo'],
+      'meaningful': ['significativo'],
+      'significant': ['significativo'],
+      'important': ['importante'],
+      'essential': ['esencial'],
+      'necessary': ['necesario'],
+      'required': ['requerido'],
+      'mandatory': ['obligatorio'],
+      'compulsory': ['obligatorio'],
+      'optional': ['opcional'],
+      'voluntary': ['voluntario'],
+      'willing': ['dispuesto'],
+      'eager': ['ansioso'],
+      'enthusiastic': ['entusiasta'],
+      'excited': ['emocionado'],
+      'thrilled': ['emocionado'],
+      'delighted': ['encantado'],
+      'pleased': ['complacido'],
+      'satisfied': ['satisfecho'],
+      'content': ['contento'],
+      'happy': ['feliz'],
+      'joyful': ['alegre'],
+      'cheerful': ['alegre'],
+      'merry': ['alegre'],
+      'glad': ['contento'],
+      'elated': ['eufórico'],
+      'ecstatic': ['extasiado'],
+      'overjoyed': ['lleno de alegría'],
+      'blissful': ['dichoso'],
+      'peaceful': ['pacífico'],
+      'serene': ['sereno'],
+      'calm': ['calmado'],
+      'tranquil': ['tranquilo'],
+      'quiet': ['silencioso'],
+      'silent': ['silencioso'],
+      'still': ['quieto'],
+      'motionless': ['inmóvil'],
+      'stationary': ['estacionario'],
+      'fixed': ['fijo'],
+      'stable': ['estable'],
+      'steady': ['estable'],
+      'constant': ['constante'],
+      'continuous': ['continuo'],
+      'ongoing': ['en curso'],
+      'persistent': ['persistente'],
+      'lasting': ['duradero'],
+      'enduring': ['duradero'],
+      'eternal': ['eterno'],
+      'everlasting': ['eterno'],
+      'forever': ['para siempre'],
+      'always': ['siempre'],
+      'never': ['nunca'],
+      'sometimes': ['a veces'],
+      'occasionally': ['ocasionalmente'],
+      'rarely': ['raramente'],
+      'seldom': ['raramente'],
+      'hardly': ['apenas'],
+      'barely': ['apenas'],
+      'scarcely': ['apenas'],
+      'almost': ['casi'],
+      'nearly': ['casi'],
+      'approximately': ['aproximadamente'],
+      'roughly': ['aproximadamente'],
+      'about': ['aproximadamente'],
+      'around': ['alrededor de'],
+      'exactly': ['exactamente'],
+      'precisely': ['precisamente'],
+      'specifically': ['específicamente'],
+      'particularly': ['particularmente'],
+      'especially': ['especialmente'],
+      'mainly': ['principalmente'],
+      'mostly': ['principalmente'],
+      'generally': ['generalmente'],
+      'usually': ['usualmente'],
+      'normally': ['normalmente'],
+      'typically': ['típicamente'],
+      'commonly': ['comúnmente'],
+      'frequently': ['frecuentemente'],
+      'often': ['a menudo'],
+      'regularly': ['regularmente'],
+      'daily': ['diariamente'],
+      'weekly': ['semanalmente'],
+      'monthly': ['mensualmente'],
+      'yearly': ['anualmente'],
+      'annually': ['anualmente'],
+      'seasonally': ['estacionalmente'],
+      'periodically': ['periódicamente'],
+      'occasionally': ['ocasionalmente'],
+      'sporadically': ['esporádicamente'],
+      'randomly': ['aleatoriamente'],
+      'systematically': ['sistemáticamente'],
+      'methodically': ['metódicamente'],
+      'gradually': ['gradualmente'],
+      'slowly': ['lentamente'],
+      'quickly': ['rápidamente'],
+      'rapidly': ['rápidamente'],
+      'swiftly': ['rápidamente'],
+      'speedily': ['rápidamente'],
+      'instantly': ['instantáneamente'],
+      'immediately': ['inmediatamente'],
+      'suddenly': ['de repente'],
+      'abruptly': ['abruptamente'],
+      'unexpectedly': ['inesperadamente'],
+      'surprisingly': ['sorprendentemente'],
+      'amazingly': ['asombrosamente'],
+      'incredibly': ['increíblemente'],
+      'unbelievably': ['increíblemente'],
+      'remarkably': ['notablemente'],
+      'extraordinarily': ['extraordinariamente'],
+      'exceptionally': ['excepcionalmente'],
+      'unusually': ['inusualmente'],
+      'particularly': ['particularmente'],
+      'especially': ['especialmente'],
+      'extremely': ['extremadamente'],
+      'very': ['muy'],
+      'quite': ['bastante'],
+      'rather': ['bastante'],
+      'fairly': ['bastante'],
+      'pretty': ['bastante'],
+      'somewhat': ['algo'],
+      'slightly': ['ligeramente'],
+      'a little': ['un poco'],
+      'a bit': ['un poco'],
+      'totally': ['totalmente'],
+      'completely': ['completamente'],
+      'entirely': ['enteramente'],
+      'absolutely': ['absolutamente'],
+      'perfectly': ['perfectamente'],
+      'fully': ['completamente'],
+      'thoroughly': ['completamente'],
+      'utterly': ['completamente'],
+      'deeply': ['profundamente'],
+      'highly': ['altamente'],
+      'greatly': ['grandemente'],
+      'significantly': ['significativamente'],
+      'considerably': ['considerablemente'],
+      'substantially': ['sustancialmente'],
+      'dramatically': ['dramáticamente'],
+      'drastically': ['drásticamente'],
+      'radically': ['radicalmente'],
+      'fundamentally': ['fundamentalmente'],
+      'basically': ['básicamente'],
+      'essentially': ['esencialmente'],
+      'primarily': ['principalmente'],
+      'chiefly': ['principalmente'],
+      'mainly': ['principalmente'],
+      'largely': ['en gran medida'],
+      'mostly': ['principalmente'],
+      'generally': ['generalmente'],
+      'broadly': ['ampliamente'],
+      'widely': ['ampliamente'],
+      'extensively': ['extensivamente'],
+      'thoroughly': ['minuciosamente'],
+      'carefully': ['cuidadosamente'],
+      'cautiously': ['cautelosamente'],
+      'gently': ['suavemente'],
+      'softly': ['suavemente'],
+      'quietly': ['silenciosamente'],
+      'loudly': ['fuertemente'],
+      'clearly': ['claramente'],
+      'obviously': ['obviamente'],
+      'evidently': ['evidentemente'],
+      'apparently': ['aparentemente'],
+      'seemingly': ['aparentemente'],
+      'probably': ['probablemente'],
+      'possibly': ['posiblemente'],
+      'maybe': ['tal vez'],
+      'perhaps': ['quizás'],
+      'definitely': ['definitivamente'],
+      'certainly': ['ciertamente'],
+      'surely': ['seguramente'],
+      'undoubtedly': ['sin duda'],
+      'obviously': ['obviamente'],
+      'clearly': ['claramente'],
+      'plainly': ['claramente'],
+      'simply': ['simplemente'],
+      'merely': ['meramente'],
+      'only': ['solo'],
+      'just': ['solo'],
+      'exactly': ['exactamente'],
+      'precisely': ['precisamente'],
+      'specifically': ['específicamente'],
+      'particularly': ['particularmente'],
+      'especially': ['especialmente'],
+      'notably': ['notablemente'],
+      'remarkably': ['notablemente'],
+      'significantly': ['significativamente'],
+      'importantly': ['importante'],
+      'seriously': ['seriamente'],
+      'honestly': ['honestamente'],
+      'truly': ['verdaderamente'],
+      'really': ['realmente'],
+      'actually': ['en realidad'],
+      'indeed': ['de hecho'],
+      'in fact': ['de hecho'],
+      'as a matter of fact': ['de hecho'],
+      'frankly': ['francamente'],
+      'to be honest': ['para ser honesto'],
+      'to tell the truth': ['para decir la verdad'],
+      'believe it or not': ['aunque no lo creas'],
+      'surprisingly': ['sorprendentemente'],
+      'interestingly': ['curiosamente'],
+      'unfortunately': ['desafortunadamente'],
+      'fortunately': ['afortunadamente'],
+      'luckily': ['afortunadamente'],
+      'hopefully': ['esperemos'],
+      'naturally': ['naturalmente'],
+      'obviously': ['obviamente'],
+      'of course': ['por supuesto'],
+      'certainly': ['ciertamente'],
+      'definitely': ['definitivamente'],
+      'absolutely': ['absolutamente'],
+      'positively': ['positivamente'],
+      'undoubtedly': ['sin duda'],
+      'without a doubt': ['sin duda'],
+      'no doubt': ['sin duda'],
+      'for sure': ['seguro'],
+      'definitely': ['definitivamente'],
+      'certainly': ['ciertamente'],
+      'surely': ['seguramente'],
+      'probably': ['probablemente'],
+      'likely': ['probablemente'],
+      'possibly': ['posiblemente'],
+      'maybe': ['tal vez'],
+      'perhaps': ['quizás'],
+      'conceivably': ['posiblemente'],
+      'potentially': ['potencialmente'],
+      'theoretically': ['teóricamente'],
+      'hypothetically': ['hipotéticamente'],
+      'supposedly': ['supuestamente'],
+      'allegedly': ['supuestamente'],
+      'reportedly': ['según se informa'],
+      'apparently': ['aparentemente'],
+      'seemingly': ['aparentemente'],
+      'presumably': ['presumiblemente'],
+      'assumably': ['presumiblemente'],
+      'predictably': ['predeciblemente'],
+      'understandably': ['comprensiblemente'],
+      'reasonably': ['razonablemente'],
+      'logically': ['lógicamente'],
+      'sensibly': ['sensatamente'],
+      'wisely': ['sabiamente'],
+      'cleverly': ['inteligentemente'],
+      'smartly': ['inteligentemente'],
+      'brilliantly': ['brillantemente'],
+      'expertly': ['expertamente'],
+      'skillfully': ['hábilmente'],
+      'professionally': ['profesionalmente'],
+      'competently': ['competentemente'],
+      'efficiently': ['eficientemente'],
+      'effectively': ['efectivamente'],
+      'successfully': ['exitosamente'],
+      'perfectly': ['perfectamente'],
+      'excellently': ['excelentemente'],
+      'wonderfully': ['maravillosamente'],
+      'beautifully': ['hermosamente'],
+      'elegantly': ['elegantemente'],
+      'gracefully': ['graciosamente'],
+      'stylishly': ['elegantemente'],
+      'fashionably': ['a la moda'],
+      'attractively': ['atractivamente'],
+      'charmingly': ['encantadoramente'],
+      'delightfully': ['deliciosamente'],
+      'pleasantly': ['agradablemente'],
+      'nicely': ['agradablemente'],
+      'kindly': ['amablemente'],
+      'gently': ['suavemente'],
+      'tenderly': ['tiernamente'],
+      'lovingly': ['amorosamente'],
+      'affectionately': ['cariñosamente'],
+      'warmly': ['cálidamente'],
+      'friendly': ['amigablemente'],
+      'politely': ['cortésmente'],
+      'respectfully': ['respetuosamente'],
+      'courteously': ['cortésmente'],
+      'graciously': ['graciosamente'],
+      'generously': ['generosamente'],
+      'helpfully': ['útilmente'],
+      'thoughtfully': ['reflexivamente'],
+      'considerately': ['consideradamente'],
+      'carefully': ['cuidadosamente'],
+      'cautiously': ['cautelosamente'],
+      'safely': ['seguramente'],
+      'securely': ['seguramente'],
+      'properly': ['apropiadamente'],
+      'correctly': ['correctamente'],
+      'accurately': ['precisamente'],
+      'precisely': ['precisamente'],
+      'exactly': ['exactamente'],
+      'specifically': ['específicamente'],
+      'clearly': ['claramente'],
+      'distinctly': ['distintamente'],
+      'obviously': ['obviamente'],
+      'plainly': ['claramente'],
+      'simply': ['simplemente'],
+      'easily': ['fácilmente'],
+      'effortlessly': ['sin esfuerzo'],
+      'smoothly': ['suavemente'],
+      'fluidly': ['fluidamente'],
+      'naturally': ['naturalmente'],
+      'automatically': ['automáticamente'],
+      'instantly': ['instantáneamente'],
+      'immediately': ['inmediatamente'],
+      'quickly': ['rápidamente'],
+      'rapidly': ['rápidamente'],
+      'swiftly': ['rápidamente'],
+      'speedily': ['rápidamente'],
+      'fast': ['rápido'],
+      'slowly': ['lentamente'],
+      'gradually': ['gradualmente'],
+      'steadily': ['constantemente'],
+      'consistently': ['consistentemente'],
+      'regularly': ['regularmente'],
+      'frequently': ['frecuentemente'],
+      'often': ['a menudo'],
+      'usually': ['usualmente'],
+      'normally': ['normalmente'],
+      'typically': ['típicamente'],
+      'generally': ['generalmente'],
+      'commonly': ['comúnmente'],
+      'widely': ['ampliamente'],
+      'broadly': ['ampliamente'],
+      'extensively': ['extensivamente'],
+      'thoroughly': ['minuciosamente'],
+      'completely': ['completamente'],
+      'entirely': ['enteramente'],
+      'totally': ['totalmente'],
+      'fully': ['completamente'],
+      'wholly': ['completamente'],
+      'absolutely': ['absolutamente'],
+      'utterly': ['completamente'],
+      'extremely': ['extremadamente'],
+      'highly': ['altamente'],
+      'very': ['muy'],
+      'quite': ['bastante'],
+      'rather': ['bastante'],
+      'fairly': ['bastante'],
+      'pretty': ['bastante'],
+      'somewhat': ['algo'],
+      'slightly': ['ligeramente'],
+      'barely': ['apenas'],
+      'hardly': ['apenas'],
+      'scarcely': ['apenas'],
+      'almost': ['casi'],
+      'nearly': ['casi'],
+      'practically': ['prácticamente'],
+      'virtually': ['virtualmente'],
+      'essentially': ['esencialmente'],
+      'basically': ['básicamente'],
+      'fundamentally': ['fundamentalmente'],
+      'primarily': ['principalmente'],
+      'mainly': ['principalmente'],
+      'chiefly': ['principalmente'],
+      'largely': ['en gran medida'],
+      'mostly': ['principalmente'],
+      'generally': ['generalmente'],
+      'overall': ['en general'],
+      'on the whole': ['en general'],
+      'by and large': ['en general'],
+      'for the most part': ['en su mayor parte'],
+      'in general': ['en general'],
+      'as a rule': ['por regla general'],
+      'typically': ['típicamente'],
+      'usually': ['usualmente'],
+      'normally': ['normalmente'],
+      'ordinarily': ['ordinariamente'],
+      'commonly': ['comúnmente'],
+      'frequently': ['frecuentemente'],
+      'often': ['a menudo'],
+      'regularly': ['regularmente'],
+      'consistently': ['consistentemente'],
+      'constantly': ['constantemente'],
+      'continually': ['continuamente'],
+      'continuously': ['continuamente'],
+      'persistently': ['persistentemente'],
+      'repeatedly': ['repetidamente'],
+      'again and again': ['una y otra vez'],
+      'over and over': ['una y otra vez'],
+      'time and again': ['una y otra vez'],
+      'once more': ['una vez más'],
+      'once again': ['una vez más'],
+      'yet again': ['una vez más'],
+      'still': ['todavía'],
+      'yet': ['aún'],
+      'already': ['ya'],
+      'just': ['apenas'],
+      'recently': ['recientemente'],
+      'lately': ['últimamente'],
+      'currently': ['actualmente'],
+      'presently': ['actualmente'],
+      'now': ['ahora'],
+      'right now': ['ahora mismo'],
+      'at the moment': ['en este momento'],
+      'at present': ['en la actualidad'],
+      'nowadays': ['hoy en día'],
+      'these days': ['en estos días'],
+      'today': ['hoy'],
+      'tomorrow': ['mañana'],
+      'yesterday': ['ayer'],
+      'soon': ['pronto'],
+      'shortly': ['en breve'],
+      'before long': ['dentro de poco'],
+      'in the near future': ['en un futuro cercano'],
+      'eventually': ['eventualmente'],
+      'ultimately': ['finalmente'],
+      'finally': ['finalmente'],
+      'at last': ['por fin'],
+      'in the end': ['al final'],
+      'after all': ['después de todo'],
+      'meanwhile': ['mientras tanto'],
+      'in the meantime': ['mientras tanto'],
+      'at the same time': ['al mismo tiempo'],
+      'simultaneously': ['simultáneamente'],
+      'concurrently': ['concurrentemente'],
+      'together': ['juntos'],
+      'separately': ['por separado'],
+      'individually': ['individualmente'],
+      'alone': ['solo'],
+      'by oneself': ['por sí mismo'],
+      'independently': ['independientemente'],
+      'personally': ['personalmente'],
+      'privately': ['privadamente'],
+      'publicly': ['públicamente'],
+      'openly': ['abiertamente'],
+      'frankly': ['francamente'],
+      'honestly': ['honestamente'],
+      'sincerely': ['sinceramente'],
+      'genuinely': ['genuinamente'],
+      'truly': ['verdaderamente'],
+      'really': ['realmente'],
+      'actually': ['en realidad'],
+      'in fact': ['de hecho'],
+      'indeed': ['de hecho'],
+      'certainly': ['ciertamente'],
+      'definitely': ['definitivamente'],
+      'absolutely': ['absolutamente'],
+      'positively': ['positivamente'],
+      'undoubtedly': ['sin duda'],
+      'without doubt': ['sin duda'],
+      'no doubt': ['sin duda'],
+      'for certain': ['con certeza'],
+      'for sure': ['seguro'],
+      'surely': ['seguramente'],
+      'obviously': ['obviamente'],
+      'clearly': ['claramente'],
+      'evidently': ['evidentemente'],
+      'apparently': ['aparentemente'],
+      'seemingly': ['aparentemente'],
+      'presumably': ['presumiblemente'],
+      'supposedly': ['supuestamente'],
+      'allegedly': ['supuestamente'],
+      'reportedly': ['según se informa'],
+      'according to': ['según'],
+      'based on': ['basado en'],
+      'depending on': ['dependiendo de'],
+      'regardless of': ['independientemente de'],
+      'despite': ['a pesar de'],
+      'in spite of': ['a pesar de'],
+      'although': ['aunque'],
+      'though': ['aunque'],
+      'even though': ['aunque'],
+      'while': ['mientras'],
+      'whereas': ['mientras que'],
+      'on the other hand': ['por otro lado'],
+      'however': ['sin embargo'],
+      'nevertheless': ['sin embargo'],
+      'nonetheless': ['no obstante'],
+      'still': ['aún así'],
+      'yet': ['sin embargo'],
+      'but': ['pero'],
+      'except': ['excepto'],
+      'besides': ['además'],
+      'in addition': ['además'],
+      'furthermore': ['además'],
+      'moreover': ['además'],
+      'also': ['también'],
+      'too': ['también'],
+      'as well': ['también'],
+      'likewise': ['asimismo'],
+      'similarly': ['similarmente'],
+      'in the same way': ['de la misma manera'],
+      'equally': ['igualmente'],
+      'comparatively': ['comparativamente'],
+      'relatively': ['relativamente'],
+      'approximately': ['aproximadamente'],
+      'roughly': ['aproximadamente'],
+      'about': ['aproximadamente'],
+      'around': ['alrededor de'],
+      'nearly': ['casi'],
+      'almost': ['casi'],
+      'practically': ['prácticamente'],
+      'virtually': ['virtualmente'],
+      'essentially': ['esencialmente'],
+      'basically': ['básicamente'],
+      'fundamentally': ['fundamentalmente'],
+      'primarily': ['principalmente'],
+      'mainly': ['principalmente'],
+      'chiefly': ['principalmente'],
+      'largely': ['en gran medida'],
+      'mostly': ['principalmente'],
+      'generally': ['generalmente'],
+      'typically': ['típicamente'],
+      'usually': ['usualmente'],
+      'normally': ['normalmente'],
+      'commonly': ['comúnmente'],
+      'frequently': ['frecuentemente'],
+      'often': ['a menudo'],
+      'regularly': ['regularmente'],
+      'consistently': ['consistentemente'],
+      'constantly': ['constantemente'],
+      'continually': ['continuamente'],
+      'continuously': ['continuamente'],
+      'persistently': ['persistentemente'],
+      'repeatedly': ['repetidamente'],
+      'occasionally': ['ocasionalmente'],
+      'sometimes': ['a veces'],
+      'rarely': ['raramente'],
+      'seldom': ['raramente'],
+      'hardly ever': ['casi nunca'],
+      'never': ['nunca'],
+      'always': ['siempre'],
+      'forever': ['para siempre'],
+      'permanently': ['permanentemente'],
+      'temporarily': ['temporalmente'],
+      'briefly': ['brevemente'],
+      'momentarily': ['momentáneamente'],
+      'instantly': ['instantáneamente'],
+      'immediately': ['inmediatamente'],
+      'right away': ['inmediatamente'],
+      'at once': ['inmediatamente'],
+      'straightaway': ['inmediatamente'],
+      'without delay': ['sin demora'],
+      'quickly': ['rápidamente'],
+      'rapidly': ['rápidamente'],
+      'swiftly': ['rápidamente'],
+      'speedily': ['rápidamente'],
+      'fast': ['rápido'],
+      'slowly': ['lentamente'],
+      'gradually': ['gradualmente'],
+      'step by step': ['paso a paso'],
+      'little by little': ['poco a poco'],
+      'bit by bit': ['poco a poco'],
+      'one by one': ['uno por uno'],
+      'piece by piece': ['pieza por pieza'],
+      'day by day': ['día a día'],
+      'year by year': ['año tras año'],
+      'more and more': ['más y más'],
+      'less and less': ['menos y menos'],
+      'better and better': ['mejor y mejor'],
+      'worse and worse': ['peor y peor'],
+      'sooner or later': ['tarde o temprano'],
+      'now or never': ['ahora o nunca'],
+      'here and there': ['aquí y allá'],
+      'back and forth': ['de un lado a otro'],
+      'up and down': ['arriba y abajo'],
+      'in and out': ['dentro y fuera'],
+      'on and off': ['de vez en cuando'],
+      'off and on': ['de vez en cuando'],
+      'come and go': ['ir y venir'],
+      'give and take': ['dar y tomar'],
+      'trial and error': ['prueba y error'],
+      'black and white': ['blanco y negro'],
+      'night and day': ['noche y día'],
+      'safe and sound': ['sano y salvo'],
+      'loud and clear': ['alto y claro'],
+      'far and wide': ['por todas partes'],
+      'high and low': ['por todas partes'],
+      'left and right': ['izquierda y derecha'],
+      'first and foremost': ['ante todo'],
+      'last but not least': ['por último pero no menos importante'],
+      'more or less': ['más o menos'],
+      'sooner or later': ['tarde o temprano'],
+      'now and then': ['de vez en cuando'],
+      'here and now': ['aquí y ahora'],
+      'then and there': ['en ese momento'],
+      'once and for all': ['de una vez por todas'],
+      'all or nothing': ['todo o nada'],
+      'take it or leave it': ['tómalo o déjalo'],
+      'like it or not': ['te guste o no'],
+      'ready or not': ['listo o no'],
+      'sink or swim': ['hundirse o nadar'],
+      'do or die': ['hacer o morir'],
+      'now or never': ['ahora o nunca'],
+      'all in all': ['en general'],
+      'by and large': ['en general'],
+      'more often than not': ['la mayoría de las veces'],
+      'as a matter of fact': ['de hecho'],
+      'believe it or not': ['aunque no lo creas'],
+      'like it or not': ['te guste o no'],
+      'ready or not': ['listo o no'],
+      'wanted or not': ['querido o no'],
+      'needed or not': ['necesario o no'],
+      'rain or shine': ['llueva o haga sol'],
+      'come what may': ['pase lo que pase'],
+      'whatever happens': ['pase lo que pase'],
+      'no matter what': ['sin importar qué'],
+      'at any cost': ['a cualquier costo'],
+      'at all costs': ['a toda costa'],
+      'by any means': ['por cualquier medio'],
+      'by all means': ['por todos los medios'],
+      'in any case': ['en cualquier caso'],
+      'in any event': ['en cualquier caso'],
+      'at any rate': ['de cualquier manera'],
+      'in the long run': ['a largo plazo'],
+      'in the short run': ['a corto plazo'],
+      'for the time being': ['por el momento'],
+      'for now': ['por ahora'],
+      'for the moment': ['por el momento'],
+      'at the moment': ['en este momento'],
+      'right now': ['ahora mismo'],
+      'just now': ['ahora mismo'],
+      'from now on': ['de ahora en adelante'],
+      'from time to time': ['de vez en cuando'],
+      'once in a while': ['de vez en cuando'],
+      'every now and then': ['de vez en cuando'],
+      'every so often': ['de vez en cuando'],
+      'on occasion': ['en ocasiones'],
+      'at times': ['a veces'],
+      'at intervals': ['a intervalos'],
+      'off and on': ['de vez en cuando'],
+      'on and off': ['de vez en cuando']
     };
 
     class Particle {
       constructor() {
-        this.x = random(width);
-        this.y = random(height);
-        this.size = random(2, 8);
-        this.speed = random(0.5, 2);
-        this.alpha = random(50, 150);
+        this.x = Math.random() * 600;
+        this.y = Math.random() * 400;
+        this.size = Math.random() * 6 + 2;
+        this.speed = Math.random() * 1.5 + 0.5;
+        this.alpha = Math.random() * 100 + 50;
+        this.color = Math.random() > 0.5 ? [255, 255, 255] : [200, 230, 255];
       }
+      
       update() {
         this.y -= this.speed;
         if (this.y < -this.size) {
-          this.y = height + this.size;
-          this.x = random(width);
+          this.y = 400 + this.size;
+          this.x = Math.random() * 600;
         }
       }
+      
       display() {
         noStroke();
-        fill(255, 255, 255, this.alpha);
+        fill(this.color[0], this.color[1], this.color[2], this.alpha);
         ellipse(this.x, this.y, this.size);
       }
     }
@@ -821,60 +3444,56 @@
         .trim();
     }
 
-    function random(array) {
-      return array[Math.floor(Math.random() * array.length)];
-    }
-
     function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      return array;
-    }
-
-    async function getTranslations(word) {
-      try {
-        if (fallbackTranslations[word]) {
-          return fallbackTranslations[word].map(normalizeText);
-        }
-        const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|es`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        if (data.responseData && data.responseData.translatedText) {
-          const translation = normalizeText(data.responseData.translatedText);
-          const combinedTranslations = new Set([
-            translation,
-            ...(fallbackTranslations[word] ? fallbackTranslations[word].map(normalizeText) : [])
-          ]);
-          return Array.from(combinedTranslations);
-        }
-        return null;
-      } catch (error) {
-        console.error(`Error al consultar MyMemory para "${word}": ${error.message}`);
-        return fallbackTranslations[word] ? fallbackTranslations[word].map(normalizeText) : null;
-      }
+      return shuffled;
     }
 
     function setup() {
       createCanvas(600, 400);
       document.getElementById('fileInput').addEventListener('change', handleFile);
-      color1 = color(100, 150, 200); // Sky blue
-      color2 = color(150, 100, 200); // Purple
-      for (let i = 0; i < 50; i++) {
+      color1 = color(100, 150, 200);
+      color2 = color(150, 100, 200);
+      
+      // Initialize particles
+      for (let i = 0; i < 30; i++) {
         particles.push(new Particle());
       }
+      
+      // Load default words if no file is uploaded
+      setTimeout(() => {
+        if (!fileLoaded && phrases.length === 0) {
+          loadDefaultWords();
+        }
+      }, 1000);
+    }
+
+    function loadDefaultWords() {
+      const commonWords = Object.keys(fallbackTranslations).slice(0, 100);
+      for (let word of commonWords) {
+        phrases.push({
+          english: word,
+          spanish: fallbackTranslations[word].map(normalizeText)
+        });
+      }
+      fileLoaded = true;
+      console.log('Loaded default vocabulary:', phrases.length, 'words');
     }
 
     function drawAnimatedBackground() {
-      let t = (sin(frameCount * 0.005) + 1) / 2;
+      // Create gradient background
       for (let y = 0; y < height; y++) {
-        let c = lerpColor(color1, color2, t * (y / height));
+        let inter = map(y, 0, height, 0, 1);
+        let c = lerpColor(color1, color2, inter + sin(frameCount * 0.01) * 0.1);
         stroke(c);
         line(0, y, width, y);
       }
+      
+      // Draw particles
       for (let p of particles) {
         p.update();
         p.display();
@@ -883,404 +3502,502 @@
 
     function draw() {
       drawAnimatedBackground();
-      textAlign(CENTER);
-      fill(0); // Black for high contrast
-
+      textAlign(CENTER, CENTER);
+      fill(255, 255, 255, 220);
+      stroke(0);
+      strokeWeight(2);
+      
       if (gameState === 'countdown') {
         let elapsed = millis() - countdownTimer;
-        let currentNumber = floor(3 - elapsed / 1000);
+        let currentNumber = Math.floor(3 - elapsed / 1000);
+        
         if (currentNumber < 1) {
           gameState = 'playing';
           timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
-          shuffleArray(phrases);
-          phrases = phrases.slice(0, roundSize); // Limit to roundSize
+          let shuffledPhrases = shuffleArray(phrases);
+          phrases = shuffledPhrases.slice(0, roundSize);
           currentPhraseIndex = 0;
           selectNewPhrase();
           document.getElementById('inputTranslation').style.display = 'block';
           document.getElementById('submitButton').style.display = 'block';
+          document.getElementById('inputTranslation').focus();
           return;
         }
+        
         let progress = (elapsed % 1000) / 1000;
-        let size = lerp(100, 50, progress);
+        let size = lerp(120, 60, progress);
         textSize(size);
+        fill(255, 100, 100, 255 - progress * 100);
         text(currentNumber, width / 2, height / 2);
+        
       } else if (gameState === 'waiting') {
-        textSize(24);
-        if (!fileLoaded) {
-          text('Upload a file to start...', width / 2, height / 2);
+        textSize(28);
+        fill(255);
+        if (!fileLoaded && phrases.length === 0) {
+          text('🚀 Ready to play!', width / 2, height / 2 - 40);
+          text('Upload a file or use default vocabulary', width / 2, height / 2);
           if (processingWords) {
-            text(`Processing file... (${processedCount}/${totalWords})`, width / 2, height / 2 + 50);
+            text(`Processing... (${processedCount}/${totalWords})`, width / 2, height / 2 + 40);
+            updateProgressBar(processedCount / totalWords);
           }
         } else {
-          text('File loaded! Select round size and click Start Game.', width / 2, height / 2);
+          text('📚 Vocabulary loaded!', width / 2, height / 2 - 20);
+          text(`${phrases.length} words ready`, width / 2, height / 2 + 20);
         }
+        
       } else if (gameState === 'playing') {
-        textSize(24);
         if (currentPhrase && currentPhrase.english) {
-          text('Translate: "' + currentPhrase.english + '"', width / 2, 50);
-          text('Score: ' + score, width / 2, 100);
-          text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, 130);
-          text('Time Left: ' + ceil(timeLeft), width / 2, 160);
-          text('Round: ' + (round + 1) + '/' + roundSize, width / 2, 190);
+          textSize(24);
+          fill(255, 255, 100);
+          text(`Translate: "${currentPhrase.english}"`, width / 2, 60);
+          
+          fill(100, 255, 100);
+          text(`Score: ${score}`, width / 2, 100);
+          
+          fill(255);
+          text(`✓ ${correctAnswers}  ✗ ${incorrectTranslations}`, width / 2, 130);
+          
+          fill(timeLeft > 3 ? color(255) : color(255, 100, 100));
+          text(`⏰ ${Math.ceil(timeLeft)}s`, width / 2, 160);
+          
+          fill(200, 200, 255);
+          text(`Round: ${round + 1}/${roundSize}`, width / 2, 190);
+          
           timeLeft -= 1 / frameRate();
           if (timeLeft <= 0) {
-            incorrectTranslations++;
-            errors.push({ word: currentPhrase.english, expected: currentPhrase.spanish.join(' or '), userInput: '' });
-            nextRound();
+            handleTimeout();
           }
         } else {
-          text('Error: No word available', width / 2, height / 2);
-          setTimeout(() => {
-            gameState = 'finalResults';
-          }, 2000);
+          text('Loading next word...', width / 2, height / 2);
         }
+        
       } else if (gameState === 'practice') {
-        textSize(24);
         if (currentPhrase && currentPhrase.english) {
-          text('Corrigiendo Errores: Ronda ' + (practiceRound + 1) + '/' + maxPracticeRounds, width / 2, 50);
-          text('Translate: "' + currentPhrase.english + '"', width / 2, 100);
-          text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, 130);
-          text('Time Left: ' + ceil(timeLeft), width / 2, 160);
+          textSize(24);
+          fill(255, 200, 100);
+          text(`🔄 Practice Round ${practiceRound + 1}/${maxPracticeRounds}`, width / 2, 50);
+          
+          fill(255, 255, 100);
+          text(`Translate: "${currentPhrase.english}"`, width / 2, 100);
+          
+          fill(255);
+          text(`✓ ${correctAnswers}  ✗ ${incorrectTranslations}`, width / 2, 130);
+          
+          fill(timeLeft > 3 ? color(255) : color(255, 100, 100));
+          text(`⏰ ${Math.ceil(timeLeft)}s`, width / 2, 160);
+          
           timeLeft -= 1 / frameRate();
           if (timeLeft <= 0) {
             nextPracticeRound();
           }
-        } else {
-          text('Error: No word available', width / 2, height / 2);
-          setTimeout(() => {
-            gameState = 'finalResults';
-          }, 2000);
         }
+        
       } else if (gameState === 'congratulations') {
-        textSize(32);
-        text('¡Felicidades! Todas las palabras correctas', width / 2, height / 2 - 60);
-        textSize(20);
-        text('Score: ' + score, width / 2, height / 2 - 30);
-        text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, height / 2);
+        textSize(36);
+        fill(100, 255, 100);
+        text('🎉 ¡Felicidades!', width / 2, height / 2 - 80);
+        
+        textSize(24);
+        fill(255);
+        text('Perfect score!', width / 2, height / 2 - 40);
+        text(`Final Score: ${score}`, width / 2, height / 2);
+        text(`✓ ${correctAnswers}  ✗ ${incorrectTranslations}`, width / 2, height / 2 + 40);
+        
       } else if (gameState === 'gameOver') {
         textSize(32);
-        text('¡Fin del juego! Palabras completadas', width / 2, height / 2 - 60);
-        textSize(20);
-        text('Score: ' + score, width / 2, height / 2 - 30);
-        text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, height / 2);
-      } else if (gameState === 'finalResults') {
-        document.getElementById('fileInput').style.display = 'block';
-        document.getElementById('typeSelect').style.display = 'block';
-        document.getElementById('roundSizeSelect').style.display = 'block';
-        document.getElementById('inputTranslation').style.display = 'none';
-        document.getElementById('submitButton').style.display = 'none';
-        textSize(32);
-        text('¡Resultados finales!', width / 2, height / 2 - 90);
-        textSize(20);
-        text('Final Score: ' + score, width / 2, height / 2 - 60);
-        text('Correct: ' + correctAnswers + ' | Incorrect: ' + incorrectTranslations, width / 2, height / 2 - 30);
-        text('Upload a new file to play again.', width / 2, height / 2);
+        fill(255, 200, 100);
+        text('🏁 Game Complete!', width / 2, height / 2 - 80);
+        
+        textSize(24);
+        fill(255);
+        text(`Final Score: ${score}`, width / 2, height / 2 - 30);
+        text(`✓ ${correctAnswers}  ✗ ${incorrectTranslations}`, width / 2, height / 2 + 10);
+        
         if (errors.length > 0) {
-          let table = select('#errorTable');
-          if (!table) {
-            table = createElement('table');
-            table.id('errorTable');
-            let header = createElement('tr');
-            header.child(createElement('th', 'Word'));
-            header.child(createElement('th', 'Expected'));
-            header.child(createElement('th', 'Your Input'));
-            table.child(header);
-            for (let error of errors) {
-              let row = createElement('tr');
-              row.child(createElement('td', error.word));
-              row.child(createElement('td', error.expected));
-              row.child(createElement('td', error.userInput));
-              table.child(row);
-            }
-            let downloadButton = createButton('Download Errors as Text');
-            downloadButton.position(width / 2 - 80, height / 2 + 100);
-            downloadButton.mousePressed(downloadErrors);
-          }
-        } else {
-          text('No errors to review!', width / 2, height / 2 + 30);
+          fill(255, 100, 100);
+          text(`Review ${errors.length} mistakes below`, width / 2, height / 2 + 50);
         }
+        
+      } else if (gameState === 'finalResults') {
+        showFinalResults();
       }
 
-      if (gameState === 'waiting' && fileLoaded) {
+      // Show loading elements
+      if (processingWords && gameState === 'waiting') {
+        document.getElementById('loadingContainer').style.display = 'flex';
+        document.getElementById('progressBar').style.display = 'block';
+      } else {
+        document.getElementById('loadingContainer').style.display = 'none';
+        document.getElementById('progressBar').style.display = 'none';
+      }
+
+      // Show start button when ready
+      if (gameState === 'waiting' && fileLoaded && phrases.length > 0) {
         document.getElementById('startButton').style.display = 'block';
-        document.getElementById('loadingSpinner').style.display = 'none';
-        document.getElementById('loadingText').style.display = 'none';
-      } else if (processingWords) {
-        document.getElementById('loadingSpinner').style.display = 'block';
-        document.getElementById('loadingText').style.display = 'block';
       } else {
         document.getElementById('startButton').style.display = 'none';
-        document.getElementById('loadingSpinner').style.display = 'none';
-        document.getElementById('loadingText').style.display = 'none';
+      }
+    }
+
+    function updateProgressBar(progress) {
+      const progressFill = document.getElementById('progressFill');
+      if (progressFill) {
+        progressFill.style.width = (progress * 100) + '%';
+      }
+    }
+
+    function showFinalResults() {
+      // Reset UI elements
+      document.getElementById('fileInput').style.display = 'block';
+      document.getElementById('typeSelect').style.display = 'block';
+      document.getElementById('roundSizeSelect').style.display = 'block';
+      document.getElementById('inputTranslation').style.display = 'none';
+      document.getElementById('submitButton').style.display = 'none';
+      
+      textSize(32);
+      fill(100, 200, 255);
+      text('📊 Final Results', width / 2, height / 2 - 90);
+      
+      textSize(20);
+      fill(255);
+      text(`Final Score: ${score}`, width / 2, height / 2 - 60);
+      text(`✓ Correct: ${correctAnswers}  ✗ Incorrect: ${incorrectTranslations}`, width / 2, height / 2 - 30);
+      
+      if (errors.length > 0) {
+        fill(255, 150, 150);
+        text('📝 Check your mistakes in the table below', width / 2, height / 2);
+        showErrorTable();
+      } else {
+        fill(100, 255, 100);
+        text('🌟 Perfect! No mistakes!', width / 2, height / 2);
+      }
+      
+      fill(200, 200, 255);
+      text('Upload a new file to play again', width / 2, height / 2 + 40);
+    }
+
+    function showErrorTable() {
+      if (errors.length === 0) return;
+      
+      let existingTable = document.getElementById('errorTable');
+      if (existingTable) {
+        existingTable.remove();
+      }
+      
+      const table = document.createElement('table');
+      table.id = 'errorTable';
+      
+      // Create header
+      const headerRow = document.createElement('tr');
+      ['English Word', 'Expected Spanish', 'Your Answer'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      table.appendChild(headerRow);
+      
+      // Create rows for errors
+      errors.forEach(error => {
+        const row = document.createElement('tr');
+        [error.word, error.expected, error.userInput || '(no answer)'].forEach(text => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          row.appendChild(td);
+        });
+        table.appendChild(row);
+      });
+      
+      document.body.appendChild(table);
+      
+      // Add download button
+      if (!document.getElementById('downloadButton')) {
+        const downloadBtn = document.createElement('button');
+        downloadBtn.id = 'downloadButton';
+        downloadBtn.textContent = '📥 Download Mistakes';
+        downloadBtn.style.cssText = `
+          margin: 10px;
+          padding: 10px 20px;
+          font-size: 16px;
+          background-color: #0077b3;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+        `;
+        downloadBtn.onclick = downloadErrors;
+        document.body.appendChild(downloadBtn);
       }
     }
 
     function downloadErrors() {
-      let errorText = 'Translation Errors\n\n';
-      if (errors.length > 0) {
-        errorText += 'Word Translation Errors:\n';
-        errorText += 'Word | Expected | Your Input\n';
-        errorText += '-----|---------|-----------\n';
-        for (let error of errors) {
-          errorText += `${error.word} | ${error.expected} | ${error.userInput}\n`;
-        }
-      }
-      let blob = new Blob([errorText], { type: 'text/plain' });
-      let url = URL.createObjectURL(blob);
-      let a = createA(url, 'Download Errors');
-      a.attribute('download', 'translation_errors.txt');
-      a.elt.click();
+      if (errors.length === 0) return;
+      
+      let errorText = 'Translation Mistakes Report\n';
+      errorText += '================================\n\n';
+      errorText += `Game Results:\n`;
+      errorText += `Score: ${score}\n`;
+      errorText += `Correct: ${correctAnswers}\n`;
+      errorText += `Incorrect: ${incorrectTranslations}\n\n`;
+      errorText += 'Mistakes to Review:\n';
+      errorText += '-------------------\n';
+      
+      errors.forEach((error, index) => {
+        errorText += `${index + 1}. "${error.word}"\n`;
+        errorText += `   Expected: ${error.expected}\n`;
+        errorText += `   Your answer: ${error.userInput || '(no answer)'}\n\n`;
+      });
+      
+      const blob = new Blob([errorText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'translation_mistakes.txt';
+      a.click();
       URL.revokeObjectURL(url);
-    }
-
-    async function processWordChunk(words, startIndex, chunkSize) {
-      const endIndex = Math.min(startIndex + chunkSize, words.length);
-      for (let i = startIndex; i < endIndex; i++) {
-        const word = words[i];
-        const lowerWord = word.toLowerCase();
-        let wordTranslations = translations[lowerWord];
-        if (!wordTranslations) {
-          if (fallbackTranslations[lowerWord]) {
-            wordTranslations = fallbackTranslations[lowerWord].map(normalizeText);
-          } else {
-            wordTranslations = await getTranslations(lowerWord);
-            if (!wordTranslations) {
-              const translationsInput = prompt(`No translations found for "${word}". Please enter Spanish translations separated by commas (e.g., "casa, hogar") or leave blank to skip this word:`, '');
-              if (translationsInput) {
-                wordTranslations = translationsInput.split(',').map(t => normalizeText(t)).filter(t => t);
-              }
-            }
-          }
-          if (wordTranslations && wordTranslations.length > 0) {
-            translations[lowerWord] = wordTranslations;
-            phrases.push({
-              english: lowerWord,
-              spanish: wordTranslations
-            });
-          }
-        } else {
-          phrases.push({
-            english: lowerWord,
-            spanish: wordTranslations
-          });
-        }
-        processedCount++;
-        document.getElementById('loadingText').textContent = `Processing file... (${processedCount}/${totalWords})`;
-      }
-      if (phrases.length >= 10 && !fileLoaded) {
-        fileLoaded = true;
-      }
-      if (endIndex < words.length) {
-        setTimeout(() => processWordChunk(words, endIndex, chunkSize), 0);
-      } else {
-        processingWords = false;
-        if (phrases.length === 0) {
-          alert('No valid words found in the file. Ensure words have available translations or enter translations manually.');
-        }
-      }
     }
 
     async function handleFile(event) {
       const file = event.target.files[0];
-      if (!file) {
-        alert('Please select a file.');
-        return;
-      }
+      if (!file) return;
+      
       if (!file.name.endsWith('.txt')) {
         alert('Please upload a .txt file.');
         return;
       }
+      
       processingWords = true;
       processedCount = 0;
-      document.getElementById('loadingSpinner').style.display = 'block';
-      document.getElementById('loadingText').style.display = 'block';
+      phrases = [];
+      
       const reader = new FileReader();
-      reader.onload = async function(e) {
-        const words = e.target.result.split(/[\n,]/).map(w => w.trim()).filter(w => w);
-        totalWords = [...new Set(words)].length;
+      reader.onload = async (e) => {
+        const content = e.target.result;
+        const words = content
+          .split(/[\n,\r\t]+/)
+          .map(w => w.trim().toLowerCase())
+          .filter(w => w && w.length > 0);
+        
+        const uniqueWords = [...new Set(words)];
+        totalWords = uniqueWords.length;
+        
         if (totalWords === 0) {
-          alert('The file is empty or contains no valid words.');
+          alert('No valid words found in the file.');
           processingWords = false;
-          document.getElementById('loadingSpinner').style.display = 'none';
-          document.getElementById('loadingText').style.display = 'none';
           return;
         }
-        phrases = [];
-        document.getElementById('loadingText').textContent = `Processing file... (0/${totalWords})`;
-        if (file.name === 'ashley.txt') {
-          const uniqueWords = [...new Set(words)];
-          for (let word of uniqueWords) {
-            const lowerWord = word.toLowerCase();
-            if (fallbackTranslations[lowerWord]) {
-              phrases.push({
-                english: lowerWord,
-                spanish: fallbackTranslations[lowerWord].map(normalizeText)
-              });
-              processedCount++;
-              document.getElementById('loadingText').textContent = `Processing file... (${processedCount}/${totalWords})`;
-            }
-          }
-          if (phrases.length >= 10) {
-            fileLoaded = true;
-          }
-          if (phrases.length === 0) {
-            alert('No valid words found in ashley.txt.');
-          }
-          processingWords = false;
-          document.getElementById('loadingSpinner').style.display = 'none';
-          document.getElementById('loadingText').style.display = 'none';
-        } else {
-          processWordChunk([...new Set(words)], 0, 50);
-        }
+        
+        // Process words in batches for better performance
+        await processWordsInBatches(uniqueWords);
       };
+      
       reader.onerror = () => {
-        alert('Error reading the file. Please try again.');
+        alert('Error reading file. Please try again.');
         processingWords = false;
-        document.getElementById('loadingSpinner').style.display = 'none';
-        document.getElementById('loadingText').style.display = 'none';
       };
+      
       reader.readAsText(file);
     }
 
+    async function processWordsInBatches(words) {
+      const batchSize = 10;
+      
+      for (let i = 0; i < words.length; i += batchSize) {
+        const batch = words.slice(i, i + batchSize);
+        
+        for (let word of batch) {
+          if (fallbackTranslations[word]) {
+            phrases.push({
+              english: word,
+              spanish: fallbackTranslations[word].map(normalizeText)
+            });
+          }
+          processedCount++;
+        }
+        
+        // Allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        // Mark as loaded when we have enough words
+        if (phrases.length >= 10 && !fileLoaded) {
+          fileLoaded = true;
+        }
+      }
+      
+      processingWords = false;
+      
+      if (phrases.length === 0) {
+        alert('No translations found for the words in your file. Using default vocabulary.');
+        loadDefaultWords();
+      }
+      
+      console.log(`Processed ${phrases.length} words from file`);
+    }
+
     function startPlaying() {
-      if (phrases.length === 0 || !fileLoaded) {
-        gameState = 'waiting';
-        alert('No valid words to play with. Please upload a file.');
+      if (phrases.length === 0) {
+        alert('No words available. Please upload a file or wait for default words to load.');
         return;
       }
+      
+      // Set round size
       const roundSizeSelection = document.getElementById('roundSizeSelect').value;
       if (roundSizeSelection === '25') {
-        roundSize = 25;
+        roundSize = Math.min(25, phrases.length);
       } else if (roundSizeSelection === 'half') {
         roundSize = Math.floor(phrases.length / 2);
       } else {
         roundSize = phrases.length;
       }
-      roundSize = Math.min(roundSize, phrases.length); // Cap at available phrases
+      
+      // Reset game state
+      score = 0;
+      correctAnswers = 0;
+      incorrectTranslations = 0;
+      round = 0;
+      errors = [];
+      practiceRound = 0;
+      
+      // Start countdown
       gameState = 'countdown';
-      countdownNumber = 3;
       countdownTimer = millis();
+      
+      // Hide controls
       document.getElementById('fileInput').style.display = 'none';
       document.getElementById('typeSelect').style.display = 'none';
       document.getElementById('roundSizeSelect').style.display = 'none';
       document.getElementById('startButton').style.display = 'none';
+      
+      // Remove error table if exists
+      const errorTable = document.getElementById('errorTable');
+      if (errorTable) errorTable.remove();
+      const downloadButton = document.getElementById('downloadButton');
+      if (downloadButton) downloadButton.remove();
     }
 
     function selectNewPhrase() {
-      if (phrases.length > 0 && currentPhraseIndex < phrases.length) {
+      if (currentPhraseIndex < phrases.length) {
         currentPhrase = phrases[currentPhraseIndex];
-        if (!currentPhrase || !currentPhrase.english || !Array.isArray(currentPhrase.spanish)) {
-          console.warn('Invalid phrase at index', currentPhraseIndex, currentPhrase);
-          currentPhrase = null;
-        }
       } else {
         currentPhrase = null;
-      }
-      if (!currentPhrase && phrases.length > 0) {
-        currentPhraseIndex = 0;
-        currentPhrase = phrases[currentPhraseIndex];
-        if (!currentPhrase || !currentPhrase.english || !Array.isArray(currentPhrase.spanish)) {
-          console.warn('Invalid phrase at index 0', currentPhrase);
-          currentPhrase = null;
-        }
       }
     }
 
     function submit() {
-      if (gameState !== 'playing' && gameState !== 'practice') {
-        return;
-      }
-      if (!currentPhrase || !currentPhrase.english || !Array.isArray(currentPhrase.spanish)) {
-        console.error('No valid current word available', currentPhrase);
-        incorrectTranslations++;
-        errors.push({
-          word: 'Unknown',
-          expected: 'N/A',
-          userInput: document.getElementById('inputTranslation').value || ''
-        });
-        document.getElementById('inputTranslation').value = '';
-        if (gameState === 'playing') {
-          nextRound();
-        } else {
-          nextPracticeRound();
-        }
-        return;
-      }
+      if (gameState !== 'playing' && gameState !== 'practice') return;
+      if (!currentPhrase) return;
+      
       const input = normalizeText(document.getElementById('inputTranslation').value);
-      const correctAnswersList = currentPhrase.spanish;
-      if (gameState === 'playing' && correctAnswersList.includes(input)) {
-        score += 10;
-        correctAnswers++;
-      } else if (gameState === 'playing') {
-        incorrectTranslations++;
-        errors.push({
-          word: currentPhrase.english,
-          expected: currentPhrase.spanish.join(' or '),
-          userInput: input || ''
-        });
-      } else if (gameState === 'practice' && correctAnswersList.includes(input)) {
-        correctAnswers++;
-      } else if (gameState === 'practice') {
-        incorrectTranslations++;
-      }
-      document.getElementById('inputTranslation').value = '';
+      const correctAnswers_local = currentPhrase.spanish;
+      const isCorrect = correctAnswers_local.includes(input);
+      
       if (gameState === 'playing') {
+        if (isCorrect) {
+          score += Math.max(10, Math.floor(timeLeft));
+          correctAnswers++;
+        } else {
+          incorrectTranslations++;
+          errors.push({
+            word: currentPhrase.english,
+            expected: currentPhrase.spanish.join(' / '),
+            userInput: input
+          });
+        }
         nextRound();
-      } else {
+      } else if (gameState === 'practice') {
+        if (isCorrect) {
+          correctAnswers++;
+        } else {
+          incorrectTranslations++;
+        }
         nextPracticeRound();
       }
+      
+      document.getElementById('inputTranslation').value = '';
+    }
+
+    function handleTimeout() {
+      incorrectTranslations++;
+      if (currentPhrase) {
+        errors.push({
+          word: currentPhrase.english,
+          expected: currentPhrase.spanish.join(' / '),
+          userInput: ''
+        });
+      }
+      nextRound();
     }
 
     function nextRound() {
       round++;
       currentPhraseIndex++;
-      if (round >= roundSize || currentPhraseIndex >= phrases.length || !currentPhrase) {
+      
+      if (round >= roundSize || currentPhraseIndex >= phrases.length) {
         if (errors.length === 0) {
           gameState = 'congratulations';
-          document.getElementById('inputTranslation').style.display = 'none';
-          document.getElementById('submitButton').style.display = 'none';
-          setTimeout(() => {
-            gameState = 'finalResults';
-          }, 3000);
-        } else if (errors.length > 0 && practiceRound < maxPracticeRounds) {
-          gameState = 'practice';
-          practiceRound = 0;
-          currentPhrase = random(errors);
-          timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
+          setTimeout(() => { gameState = 'finalResults'; }, 3000);
+        } else if (practiceRound < maxPracticeRounds) {
+          startPracticeRound();
         } else {
           gameState = 'gameOver';
-          document.getElementById('inputTranslation').style.display = 'none';
-          document.getElementById('submitButton').style.display = 'none';
-          setTimeout(() => {
-            gameState = 'finalResults';
-          }, 3000);
+          setTimeout(() => { gameState = 'finalResults'; }, 3000);
         }
       } else {
         selectNewPhrase();
-        timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
+        resetTimer();
+      }
+    }
+
+    function startPracticeRound() {
+      gameState = 'practice';
+      practiceRound = 0;
+      if (errors.length > 0) {
+        const randomError = errors[Math.floor(Math.random() * errors.length)];
+        currentPhrase = {
+          english: randomError.word,
+          spanish: fallbackTranslations[randomError.word] || [randomError.expected.split(' / ')[0]]
+        };
+        resetTimer();
       }
     }
 
     function nextPracticeRound() {
       practiceRound++;
-      if (practiceRound >= maxPracticeRounds || errors.length === 0 || !currentPhrase) {
+      if (practiceRound >= maxPracticeRounds || errors.length === 0) {
         gameState = 'gameOver';
-        document.getElementById('inputTranslation').style.display = 'none';
-        document.getElementById('submitButton').style.display = 'none';
-        setTimeout(() => {
-          gameState = 'finalResults';
-          fileLoaded = false;
-        }, 3000);
+        setTimeout(() => { gameState = 'finalResults'; }, 3000);
       } else {
-        currentPhrase = random(errors);
-        timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
+        const randomError = errors[Math.floor(Math.random() * errors.length)];
+        currentPhrase = {
+          english: randomError.word,
+          spanish: fallbackTranslations[randomError.word] || [randomError.expected.split(' / ')[0]]
+        };
+        resetTimer();
       }
     }
 
+    function resetTimer() {
+      timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
+      document.getElementById('inputTranslation').focus();
+    }
+
+    // Event listeners
     document.getElementById('inputTranslation').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
+        e.preventDefault();
         submit();
       }
+    });
+
+    // Disable submit button when input is empty
+    document.getElementById('inputTranslation').addEventListener('input', function() {
+      const submitBtn = document.getElementById('submitButton');
+      submitBtn.disabled = this.value.trim() === '';
+    });
+
+    // Initialize the game
+    window.addEventListener('load', function() {
+      console.log('🎮 Translate Blitz loaded successfully!');
+      console.log(`📚 ${Object.keys(fallbackTranslations).length} words in vocabulary`);
     });
   </script>
 </body>
