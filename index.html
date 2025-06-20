@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Translate Blitz: A comprehensive English-to-Spanish translation game with pronunciation practice.">
-  <title>Translate Blitz Pro - Fixed</title>
+  <title>Translate Blitz Pro - Voice Recognition</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
   <style>
     * {
@@ -282,6 +282,140 @@
       display: none;
     }
 
+    .voice-recognition {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 25px;
+      margin: 15px 0;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: none;
+    }
+
+    .voice-title {
+      font-size: 1.5rem;
+      color: #ffa726;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .pronunciation-rounds {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .round-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .round-pending {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .round-active {
+      border-color: #ffa726;
+      background: rgba(255, 167, 38, 0.2);
+      color: #ffa726;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .round-success {
+      border-color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.2);
+      color: #4ecdc4;
+    }
+
+    .round-failed {
+      border-color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.2);
+      color: #ff6b6b;
+    }
+
+    .mic-button {
+      background: linear-gradient(45deg, #ff6b6b, #ffa726);
+      border: none;
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      font-size: 2rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 20px auto;
+      display: block;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .mic-button:hover {
+      transform: scale(1.1);
+    }
+
+    .mic-button.recording {
+      background: linear-gradient(45deg, #ff4757, #ff3838);
+      animation: pulse 0.5s ease-in-out infinite;
+    }
+
+    .voice-feedback {
+      margin: 15px 0;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .feedback-success {
+      background: rgba(78, 205, 196, 0.2);
+      border: 1px solid #4ecdc4;
+      color: #4ecdc4;
+    }
+
+    .feedback-error {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .feedback-info {
+      background: rgba(255, 167, 38, 0.2);
+      border: 1px solid #ffa726;
+      color: #ffa726;
+    }
+
+    .pronunciation-score {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    .score-item {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .score-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ffd700;
+      display: block;
+    }
+
+    .score-label {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.8);
+      text-transform: uppercase;
+    }
+
     .errors-review {
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
@@ -300,14 +434,19 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
     }
 
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
       25% { transform: translateX(-5px); }
       75% { transform: translateX(5px); }
+    }
+
+    @keyframes recording {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
     }
 
     .processing-indicator {
@@ -320,13 +459,39 @@
       animation: spin 1s linear infinite;
       margin-right: 10px;
     }
+
+    .voice-wave {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 3px;
+      margin: 15px 0;
+    }
+
+    .wave-bar {
+      width: 4px;
+      height: 20px;
+      background: #ffa726;
+      border-radius: 2px;
+      animation: wave 1.5s ease-in-out infinite;
+    }
+
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes wave {
+      0%, 100% { height: 20px; }
+      50% { height: 40px; }
+    }
   </style>
 </head>
 <body>
   <div class="game-container">
     <div class="game-header">
       <h1 class="game-title">🌟 Translate Blitz Pro</h1>
-      <p class="game-subtitle">Process ANY number of words & sentences with comprehensive translation</p>
+      <p class="game-subtitle">Advanced Voice Recognition & Pronunciation Training</p>
     </div>
 
     <div class="controls-panel" id="controlsPanel">
@@ -443,19 +608,76 @@
       </div>
     </div>
 
-    <div class="pronunciation-display" id="pronunciationDisplay">
-      <div style="font-size: 1.8rem; color: #ffa726; font-weight: 600; margin-bottom: 15px;" id="pronunciationText"></div>
-      <div style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8); font-family: 'Courier New', monospace; margin-bottom: 15px;" id="pronunciationPhonetic"></div>
-      <button style="background: linear-gradient(45deg, #ffa726, #ff7043); min-width: 180px;" id="pronunciationButton">
-        🔊 Play Pronunciation
-      </button>
-    </div>
-
     <div class="translation-input" id="translationInput">
       <div style="color: rgba(255, 255, 255, 0.9); font-size: 1.1rem; margin-bottom: 15px;">Type your Spanish translation:</div>
       <input type="text" id="inputTranslation" placeholder="Enter Spanish translation..." autocomplete="off">
       <button style="background: linear-gradient(45deg, #667eea, #764ba2); min-width: 150px; margin-top: 10px;" id="submitButton">
         ✅ Submit Answer
+      </button>
+    </div>
+
+    <div class="voice-recognition" id="voiceRecognition">
+      <div class="voice-title">🎤 Voice Pronunciation Practice</div>
+      <div style="color: rgba(255, 255, 255, 0.9); margin-bottom: 20px; font-size: 1.1rem;">
+        Now practice pronouncing: "<span id="pronunciationWord" style="color: #ffd700; font-weight: 600;"></span>"
+      </div>
+
+      <div class="pronunciation-rounds" id="pronunciationRounds">
+        <div class="round-card round-pending" id="round1">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎯</div>
+          <div style="font-weight: 600;">Round 1</div>
+          <div style="font-size: 0.8rem; margin-top: 5px;" id="round1Status">Pending</div>
+        </div>
+        <div class="round-card round-pending" id="round2">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎯</div>
+          <div style="font-weight: 600;">Round 2</div>
+          <div style="font-size: 0.8rem; margin-top: 5px;" id="round2Status">Pending</div>
+        </div>
+        <div class="round-card round-pending" id="round3">
+          <div style="font-size: 1.5rem; margin-bottom: 5px;">🎯</div>
+          <div style="font-weight: 600;">Round 3</div>
+          <div style="font-size: 0.8rem; margin-top: 5px;" id="round3Status">Pending</div>
+        </div>
+      </div>
+
+      <button class="mic-button" id="micButton" title="Click to start recording">
+        🎤
+      </button>
+
+      <div class="voice-wave" id="voiceWave" style="display: none;">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+
+      <div id="voiceFeedback"></div>
+
+      <div class="pronunciation-score" id="pronunciationScore">
+        <div class="score-item">
+          <span class="score-value" id="accuracyScore">0%</span>
+          <span class="score-label">Accuracy</span>
+        </div>
+        <div class="score-item">
+          <span class="score-value" id="clarityScore">0%</span>
+          <span class="score-label">Clarity</span>
+        </div>
+        <div class="score-item">
+          <span class="score-value" id="speedScore">0%</span>
+          <span class="score-label">Speed</span>
+        </div>
+        <div class="score-item">
+          <span class="score-value" id="overallScore">0%</span>
+          <span class="score-label">Overall</span>
+        </div>
+      </div>
+
+    <div class="pronunciation-display" id="pronunciationDisplay">
+      <div style="font-size: 1.8rem; color: #ffa726; font-weight: 600; margin-bottom: 15px;" id="pronunciationText"></div>
+      <div style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8); font-family: 'Courier New', monospace; margin-bottom: 15px;" id="pronunciationPhonetic"></div>
+      <button style="background: linear-gradient(45deg, #ffa726, #ff7043); min-width: 180px;" id="pronunciationButton">
+        🔊 Play Pronunciation
       </button>
     </div>
 
@@ -479,6 +701,10 @@
       <div class="stat-card">
         <span class="stat-number" id="finalTime">0s</span>
         <span class="stat-label">Avg Time</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-number" id="pronunciationAccuracy">0%</span>
+        <span class="stat-label">Pronunciation</span>
       </div>
     </div>
   </div>
@@ -515,62 +741,45 @@
     let maxPronunciationAttempts = 3;
     let translationCache = {};
 
-    // Comprehensive translation dictionary
+    // Voice recognition variables
+    let recognition = null;
+    let isRecording = false;
+    let currentPronunciationRound = 1;
+    let pronunciationResults = [];
+    let speechSynthesis = window.speechSynthesis;
+    let totalPronunciationScore = 0;
+    let pronunciationStartTime = 0;
+
+    // Enhanced translation dictionary
     const translationDictionary = {
-      // Basic greetings and common phrases
       'hello': ['hola'], 'hi': ['hola'], 'goodbye': ['adiós'], 'bye': ['adiós'], 
       'please': ['por favor'], 'thank you': ['gracias'], 'thanks': ['gracias'], 
       'sorry': ['lo siento'], 'excuse me': ['disculpe'], 'yes': ['sí'], 'no': ['no'],
-      
-      // Time and dates
       'time': ['tiempo', 'hora'], 'day': ['día'], 'night': ['noche'], 'morning': ['mañana'], 
       'afternoon': ['tarde'], 'evening': ['noche'], 'today': ['hoy'], 'yesterday': ['ayer'], 
       'tomorrow': ['mañana'], 'week': ['semana'], 'month': ['mes'], 'year': ['año'],
-      
-      // Numbers 1-20
       'one': ['uno'], 'two': ['dos'], 'three': ['tres'], 'four': ['cuatro'], 'five': ['cinco'],
       'six': ['seis'], 'seven': ['siete'], 'eight': ['ocho'], 'nine': ['nueve'], 'ten': ['diez'],
-      'eleven': ['once'], 'twelve': ['doce'], 'thirteen': ['trece'], 'fourteen': ['catorce'], 
-      'fifteen': ['quince'], 'sixteen': ['dieciséis'], 'seventeen': ['diecisiete'], 
-      'eighteen': ['dieciocho'], 'nineteen': ['diecinueve'], 'twenty': ['veinte'],
-      
-      // Colors
       'red': ['rojo'], 'blue': ['azul'], 'green': ['verde'], 'yellow': ['amarillo'], 
       'orange': ['naranja'], 'purple': ['morado'], 'pink': ['rosa'], 'brown': ['marrón'], 
       'black': ['negro'], 'white': ['blanco'], 'gray': ['gris'], 'grey': ['gris'],
-      
-      // Family
       'family': ['familia'], 'mother': ['madre'], 'father': ['padre'], 'mom': ['mamá'], 
       'dad': ['papá'], 'sister': ['hermana'], 'brother': ['hermano'], 'son': ['hijo'], 
       'daughter': ['hija'], 'friend': ['amigo'], 'person': ['persona'], 'people': ['gente'],
-      
-      // Body parts
       'head': ['cabeza'], 'face': ['cara'], 'eye': ['ojo'], 'nose': ['nariz'], 'mouth': ['boca'],
       'hand': ['mano'], 'arm': ['brazo'], 'leg': ['pierna'], 'foot': ['pie'], 'heart': ['corazón'],
-      
-      // Animals
       'dog': ['perro'], 'cat': ['gato'], 'bird': ['pájaro'], 'fish': ['pez'], 'horse': ['caballo'],
-      
-      // Food
       'food': ['comida'], 'water': ['agua'], 'bread': ['pan'], 'milk': ['leche'], 'meat': ['carne'],
       'apple': ['manzana'], 'banana': ['plátano'], 'orange': ['naranja'], 'coffee': ['café'],
-      
-      // Places
       'house': ['casa'], 'home': ['hogar'], 'school': ['escuela'], 'work': ['trabajo'], 
       'city': ['ciudad'], 'country': ['país'], 'world': ['mundo'],
-      
-      // Common verbs
       'be': ['ser', 'estar'], 'have': ['tener'], 'do': ['hacer'], 'say': ['decir'], 'go': ['ir'],
       'come': ['venir'], 'see': ['ver'], 'eat': ['comer'], 'drink': ['beber'], 'sleep': ['dormir'],
       'walk': ['caminar'], 'run': ['correr'], 'play': ['jugar'], 'read': ['leer'], 'write': ['escribir'],
       'speak': ['hablar'], 'listen': ['escuchar'], 'watch': ['ver'], 'learn': ['aprender'],
-      
-      // Adjectives
       'good': ['bueno'], 'bad': ['malo'], 'big': ['grande'], 'small': ['pequeño'], 
       'hot': ['caliente'], 'cold': ['frío'], 'new': ['nuevo'], 'old': ['viejo'], 
       'happy': ['feliz'], 'sad': ['triste'], 'beautiful': ['hermoso'], 'ugly': ['feo'],
-      
-      // Common phrases
       'how are you': ['cómo estás'], 'what is your name': ['cómo te llamas'], 
       'nice to meet you': ['mucho gusto'], 'i love you': ['te amo'], 'see you later': ['hasta luego'],
       'good morning': ['buenos días'], 'good night': ['buenas noches'], 'excuse me': ['disculpe'],
@@ -620,6 +829,75 @@
       }
     }
 
+    // Voice Recognition Setup
+    function initializeVoiceRecognition() {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        recognition.maxAlternatives = 3;
+        
+        recognition.onstart = function() {
+          console.log('🎤 Voice recognition started');
+          isRecording = true;
+          updateMicButton();
+          showVoiceWave();
+          showFeedback('🎤 Listening... Speak now!', 'info');
+        };
+        
+        recognition.onend = function() {
+          console.log('🎤 Voice recognition ended');
+          isRecording = false;
+          updateMicButton();
+          hideVoiceWave();
+        };
+        
+        recognition.onresult = function(event) {
+          const result = event.results[0];
+          const spokenText = result[0].transcript.toLowerCase().trim();
+          const confidence = result[0].confidence;
+          
+          console.log(`🗣️ Heard: "${spokenText}" (confidence: ${(confidence * 100).toFixed(1)}%)`);
+          
+          processPronunciationResult(spokenText, confidence);
+        };
+        
+        recognition.onerror = function(event) {
+          console.error('🚫 Speech recognition error:', event.error);
+          isRecording = false;
+          updateMicButton();
+          hideVoiceWave();
+          
+          let errorMessage = 'Voice recognition error. ';
+          switch(event.error) {
+            case 'no-speech':
+              errorMessage += 'No speech detected. Please try again.';
+              break;
+            case 'audio-capture':
+              errorMessage += 'Microphone not accessible.';
+              break;
+            case 'not-allowed':
+              errorMessage += 'Microphone permission denied.';
+              break;
+            default:
+              errorMessage += 'Please try again.';
+          }
+          
+          showFeedback(errorMessage, 'error');
+        };
+        
+        console.log('✅ Voice recognition initialized successfully');
+        return true;
+      } else {
+        console.warn('⚠️ Speech recognition not supported in this browser');
+        showFeedback('Voice recognition not supported in this browser', 'error');
+        return false;
+      }
+    }
+
     function normalizeText(text) {
       return text
         .toLowerCase()
@@ -663,11 +941,14 @@
         particles.push(new Particle());
       }
       
+      // Initialize voice recognition
+      initializeVoiceRecognition();
+      
       // Load default words immediately
       loadDefaultWords();
       
       console.log('🎮 Game initialized successfully!');
-      console.log(`📅 Current Date: ${getCurrentDateTime()}`);
+      console.log(`📅 Session Date: ${getCurrentDateTime()}`);
       console.log(`👤 User: ${getCurrentUser()}`);
     }
 
@@ -724,8 +1005,8 @@
         case 'playing':
           drawGameplay();
           break;
-        case 'pronunciation':
-          drawPronunciation();
+        case 'voiceRecognition':
+          drawVoiceRecognition();
           break;
         case 'finalResults':
           drawFinalResults();
@@ -755,7 +1036,7 @@
       } else {
         text('🎯 Ready to Begin!', width/2, height/2 - 40);
         textSize(20);
-        text(`${phrases.length} words loaded and ready`, width/2, height/2 + 20);
+        text(`${phrases.length} words loaded with voice recognition`, width/2, height/2 + 20);
       }
     }
 
@@ -771,18 +1052,25 @@
       updateGameUI();
     }
 
-    function drawPronunciation() {
+    function drawVoiceRecognition() {
       fill(255, 165, 0);
       textSize(28);
-      text('🔊 Listen & Repeat', width/2, height/2 - 60);
+      text('🎤 Voice Recognition Active', width/2, height/2 - 80);
       
       fill(255);
-      textSize(36);
-      text(`"${currentPhrase.english}"`, width/2, height/2 - 20);
+      textSize(24);
+      text(`Practice: "${currentPhrase.english}"`, width/2, height/2 - 40);
       
       fill(255, 165, 0);
-      textSize(20);
-      text(`Pronunciation: ${currentPhrase.phonetic}`, width/2, height/2 + 20);
+      textSize(18);
+      text(`Round ${currentPronunciationRound} of 3`, width/2, height/2);
+      
+      // Show recording status
+      if (isRecording) {
+        fill(255, 107, 107);
+        textSize(16);
+        text('🔴 Recording...', width/2, height/2 + 40);
+      }
     }
 
     function drawFinalResults() {
@@ -792,7 +1080,7 @@
       
       fill(255);
       textSize(24);
-      text('Check your detailed results below', width/2, height/2 - 50);
+      text('Check your comprehensive results below', width/2, height/2 - 50);
       
       let accuracy = correctAnswers / (correctAnswers + incorrectTranslations) * 100;
       let avgTime = totalGameTime / (correctAnswers + incorrectTranslations);
@@ -832,6 +1120,7 @@
       document.getElementById('finalScore').textContent = score;
       document.getElementById('finalAccuracy').textContent = `${accuracy.toFixed(1)}%`;
       document.getElementById('finalTime').textContent = `${avgTime.toFixed(1)}s`;
+      document.getElementById('pronunciationAccuracy').textContent = `${(totalPronunciationScore / round).toFixed(1)}%`;
       document.getElementById('finalStats').style.display = 'grid';
     }
 
@@ -854,6 +1143,292 @@
       document.getElementById('cacheHits').textContent = cacheHits;
     }
 
+    // Voice Recognition Functions
+    function startVoiceRecognitionPhase() {
+      console.log('🎤 Starting voice recognition phase');
+      gameState = 'voiceRecognition';
+      
+      // Reset pronunciation state
+      currentPronunciationRound = 1;
+      pronunciationResults = [];
+      pronunciationStartTime = millis();
+      
+      // Hide translation input and show voice recognition
+      document.getElementById('translationInput').style.display = 'none';
+      document.getElementById('voiceRecognition').style.display = 'block';
+      
+      // Set up the word to practice
+      document.getElementById('pronunciationWord').textContent = currentPhrase.english;
+      
+      // Reset all rounds to pending
+      resetPronunciationRounds();
+      
+      // Start first round automatically after showing example
+      setTimeout(() => {
+        playPronunciationExample();
+      }, 1000);
+    }
+
+    function resetPronunciationRounds() {
+      for (let i = 1; i <= 3; i++) {
+        const roundEl = document.getElementById(`round${i}`);
+        roundEl.className = 'round-card round-pending';
+        document.getElementById(`round${i}Status`).textContent = 'Pending';
+      }
+      updatePronunciationScores(0, 0, 0, 0);
+    }
+
+    function playPronunciationExample() {
+      showFeedback('🔊 Listen to the pronunciation first...', 'info');
+      
+      if (speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(currentPhrase.english);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        
+        utterance.onend = () => {
+          setTimeout(() => {
+            showFeedback('🎤 Now it\'s your turn! Click the microphone to start.', 'info');
+            setActiveRound(1);
+          }, 1000);
+        };
+        
+        speechSynthesis.speak(utterance);
+      } else {
+        setTimeout(() => {
+          showFeedback('🎤 Click the microphone to start pronunciation practice.', 'info');
+          setActiveRound(1);
+        }, 2000);
+      }
+    }
+
+    function setActiveRound(roundNumber) {
+      // Reset all rounds
+      for (let i = 1; i <= 3; i++) {
+        const roundEl = document.getElementById(`round${i}`);
+        if (i < roundNumber) {
+          // Already completed rounds
+          continue;
+        } else if (i === roundNumber) {
+          roundEl.className = 'round-card round-active';
+          document.getElementById(`round${i}Status`).textContent = 'Active';
+        } else {
+          roundEl.className = 'round-card round-pending';
+          document.getElementById(`round${i}Status`).textContent = 'Pending';
+        }
+      }
+      currentPronunciationRound = roundNumber;
+    }
+
+    function startRecording() {
+      if (!recognition) {
+        showFeedback('Voice recognition not available', 'error');
+        return;
+      }
+      
+      if (isRecording) {
+        recognition.stop();
+        return;
+      }
+      
+      try {
+        recognition.start();
+      } catch (error) {
+        console.error('Error starting recognition:', error);
+        showFeedback('Error starting voice recognition', 'error');
+      }
+    }
+
+    function processPronunciationResult(spokenText, confidence) {
+      const targetWord = currentPhrase.english.toLowerCase();
+      const similarity = calculateSimilarity(spokenText, targetWord);
+      
+      console.log(`🎯 Target: "${targetWord}", Spoken: "${spokenText}"`);
+      console.log(`📊 Similarity: ${similarity}%, Confidence: ${(confidence * 100).toFixed(1)}%`);
+      
+      // Calculate scores
+      const accuracyScore = similarity;
+      const clarityScore = confidence * 100;
+      const speedScore = calculateSpeedScore();
+      const overallScore = (accuracyScore + clarityScore + speedScore) / 3;
+      
+      // Store result
+      pronunciationResults.push({
+        round: currentPronunciationRound,
+        spoken: spokenText,
+        accuracy: accuracyScore,
+        clarity: clarityScore,
+        speed: speedScore,
+        overall: overallScore
+      });
+      
+      // Update round status
+      const roundEl = document.getElementById(`round${currentPronunciationRound}`);
+      const statusEl = document.getElementById(`round${currentPronunciationRound}Status`);
+      
+      if (overallScore >= 70) {
+        roundEl.className = 'round-card round-success';
+        statusEl.textContent = `${overallScore.toFixed(0)}% ✅`;
+        showFeedback(`🎉 Great pronunciation! Score: ${overallScore.toFixed(1)}%`, 'success');
+      } else if (overallScore >= 40) {
+        roundEl.className = 'round-card round-success';
+        statusEl.textContent = `${overallScore.toFixed(0)}% ⚠️`;
+        showFeedback(`🔄 Good attempt! Score: ${overallScore.toFixed(1)}%. Try again for better accuracy.`, 'info');
+      } else {
+        roundEl.className = 'round-card round-failed';
+        statusEl.textContent = `${overallScore.toFixed(0)}% ❌`;
+        showFeedback(`🎯 Keep practicing! Score: ${overallScore.toFixed(1)}%. Focus on clarity.`, 'error');
+      }
+      
+      // Update scores display
+      updatePronunciationScores(accuracyScore, clarityScore, speedScore, overallScore);
+      
+      // Move to next round or finish
+      if (currentPronunciationRound < 3) {
+        setTimeout(() => {
+          currentPronunciationRound++;
+          setActiveRound(currentPronunciationRound);
+          showFeedback(`🎤 Round ${currentPronunciationRound}: Click microphone when ready`, 'info');
+        }, 2000);
+      } else {
+        setTimeout(() => {
+          finishPronunciationPhase();
+        }, 3000);
+      }
+    }
+
+    function calculateSimilarity(spoken, target) {
+      // Simple similarity calculation using Levenshtein distance
+      const spokenNorm = spoken.toLowerCase().replace(/[^a-z]/g, '');
+      const targetNorm = target.toLowerCase().replace(/[^a-z]/g, '');
+      
+      if (spokenNorm === targetNorm) return 100;
+      
+      const distance = levenshteinDistance(spokenNorm, targetNorm);
+      const maxLength = Math.max(spokenNorm.length, targetNorm.length);
+      const similarity = Math.max(0, (maxLength - distance) / maxLength * 100);
+      
+      return similarity;
+    }
+
+    function levenshteinDistance(str1, str2) {
+      const matrix = [];
+      
+      for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i];
+      }
+      
+      for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j;
+      }
+      
+      for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+          if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      
+      return matrix[str2.length][str1.length];
+    }
+
+    function calculateSpeedScore() {
+      const elapsedTime = (millis() - pronunciationStartTime) / 1000;
+      const targetTime = 3; // 3 seconds is optimal
+      
+      if (elapsedTime <= targetTime) {
+        return 100;
+      } else if (elapsedTime <= targetTime * 2) {
+        return Math.max(60, 100 - (elapsedTime - targetTime) * 20);
+      } else {
+        return 40;
+      }
+    }
+
+    function updatePronunciationScores(accuracy, clarity, speed, overall) {
+      document.getElementById('accuracyScore').textContent = `${accuracy.toFixed(0)}%`;
+      document.getElementById('clarityScore').textContent = `${clarity.toFixed(0)}%`;
+      document.getElementById('speedScore').textContent = `${speed.toFixed(0)}%`;
+      document.getElementById('overallScore').textContent = `${overall.toFixed(0)}%`;
+    }
+
+    function finishPronunciationPhase() {
+      console.log('🏁 Finishing pronunciation phase');
+      
+      // Calculate average pronunciation score for this word
+      const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
+      totalPronunciationScore += avgScore;
+      
+      // Hide voice recognition interface
+      document.getElementById('voiceRecognition').style.display = 'none';
+      
+      // Show results summary
+      showFeedback(`🎯 Pronunciation complete! Average score: ${avgScore.toFixed(1)}%`, 'success');
+      
+      // Continue to next round
+      setTimeout(() => {
+        nextRound();
+      }, 2000);
+    }
+
+    function updateMicButton() {
+      const micButton = document.getElementById('micButton');
+      if (isRecording) {
+        micButton.className = 'mic-button recording';
+        micButton.textContent = '🔴';
+        micButton.title = 'Recording... Click to stop';
+      } else {
+        micButton.className = 'mic-button';
+        micButton.textContent = '🎤';
+        micButton.title = 'Click to start recording';
+      }
+    }
+
+    function showVoiceWave() {
+      document.getElementById('voiceWave').style.display = 'flex';
+    }
+
+    function hideVoiceWave() {
+      document.getElementById('voiceWave').style.display = 'none';
+    }
+
+    function showFeedback(message, type) {
+      const feedbackEl = document.getElementById('voiceFeedback');
+      feedbackEl.innerHTML = `<div class="voice-feedback feedback-${type}">${message}</div>`;
+      
+      // Auto-clear success and info messages after 5 seconds
+      if (type === 'success' || type === 'info') {
+        setTimeout(() => {
+          if (feedbackEl.innerHTML.includes(message)) {
+            feedbackEl.innerHTML = '';
+          }
+        }, 5000);
+      }
+    }
+
+    function skipPronunciation() {
+      console.log('⏭️ Skipping pronunciation practice');
+      
+      // Add a low score for skipped pronunciation
+      totalPronunciationScore += 20; // Low score for skipping
+      
+      // Hide voice recognition interface
+      document.getElementById('voiceRecognition').style.display = 'none';
+      
+      // Continue to next round
+      nextRound();
+    }
+
+    // File handling functions (simplified for brevity)
     async function handleFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -922,7 +1497,7 @@
       };
     }
 
-    function displayFileAnalysis(analysis) {
+       function displayFileAnalysis(analysis) {
       document.getElementById('fileInfo').style.display = 'block';
       document.getElementById('totalWordsCount').textContent = analysis.totalWords;
       document.getElementById('uniqueWordsCount').textContent = analysis.uniqueWords;
@@ -1127,6 +1702,7 @@
       currentPhraseIndex = 0;
       waitingForPronunciation = false;
       pronunciationAttempts = 0;
+      totalPronunciationScore = 0;
     }
 
     function hideControls() {
@@ -1184,7 +1760,9 @@
       }
       
       document.getElementById('inputTranslation').value = '';
-      startPronunciationPhase();
+      
+      // Start voice recognition phase instead of regular pronunciation
+      startVoiceRecognitionPhase();
     }
 
     function handleTimeout() {
@@ -1199,52 +1777,7 @@
         });
       }
       showTimeoutFeedback();
-      startPronunciationPhase();
-    }
-
-    function startPronunciationPhase() {
-      gameState = 'pronunciation';
-      waitingForPronunciation = true;
-      pronunciationAttempts = 0;
-      
-      document.getElementById('translationInput').style.display = 'none';
-      document.getElementById('pronunciationDisplay').style.display = 'block';
-      document.getElementById('pronunciationText').textContent = `"${currentPhrase.english}"`;
-      document.getElementById('pronunciationPhonetic').textContent = `${currentPhrase.phonetic}`;
-      
-      setTimeout(() => {
-        playPronunciation();
-      }, 1000);
-    }
-
-    function handlePronunciation() {
-      pronunciationAttempts++;
-      playPronunciation();
-      
-      if (pronunciationAttempts >= maxPronunciationAttempts) {
-        finishPronunciationPhase();
-      }
-    }
-
-    function playPronunciation() {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(currentPhrase.english);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.7;
-        utterance.pitch = 1;
-        speechSynthesis.speak(utterance);
-      }
-      
-      const btn = document.getElementById('pronunciationButton');
-      btn.style.animation = 'pulse 0.5s ease-in-out';
-      setTimeout(() => {
-        btn.style.animation = 'none';
-      }, 500);
-    }
-
-    function finishPronunciationPhase() {
-      document.getElementById('pronunciationDisplay').style.display = 'none';
-      nextRound();
+      startVoiceRecognitionPhase();
     }
 
     function nextRound() {
@@ -1321,6 +1854,7 @@
     function showFinalResults() {
       document.getElementById('gameInfo').style.display = 'none';
       document.getElementById('translationInput').style.display = 'none';
+      document.getElementById('voiceRecognition').style.display = 'none';
       document.getElementById('errorsReview').style.display = 'none';
       
       gameState = 'finalResults';
@@ -1378,13 +1912,14 @@
     }
 
     function getCurrentDateTime() {
-      return '2025-06-20 22:57:08';
+      return '2025-06-20 23:12:55';
     }
 
     // Event listeners
     document.getElementById('startButton').addEventListener('click', startPlaying);
     document.getElementById('submitButton').addEventListener('click', submit);
-    document.getElementById('pronunciationButton').addEventListener('click', handlePronunciation);
+    document.getElementById('micButton').addEventListener('click', startRecording);
+    document.getElementById('skipPronunciation').addEventListener('click', skipPronunciation);
     document.getElementById('retryButton').addEventListener('click', startRetryRound);
 
     document.getElementById('inputTranslation').addEventListener('keypress', function(e) {
@@ -1400,18 +1935,19 @@
     });
 
     document.addEventListener('keydown', function(e) {
-      if (gameState === 'pronunciation' && e.key === ' ') {
+      if (gameState === 'voiceRecognition' && e.key === ' ') {
         e.preventDefault();
-        finishPronunciationPhase();
+        startRecording();
       }
     });
 
     // Initialize game
     window.addEventListener('load', function() {
-      console.log('🎮 Translate Blitz Pro loaded successfully!');
+      console.log('🎮 Translate Blitz Pro - Voice Recognition loaded successfully!');
       console.log(`📚 Dictionary with ${Object.keys(translationDictionary).length} entries ready!`);
       console.log(`👋 Welcome, ${getCurrentUser()}!`);
       console.log(`📅 ${getCurrentDateTime()}`);
+      console.log('🎤 Voice recognition system initialized');
     });
   </script>
 </body>
