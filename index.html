@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Translate Blitz: A comprehensive English-to-Spanish translation game with pronunciation practice.">
-  <title>Translate Blitz Pro - Voice Recognition</title>
+  <meta name="description" content="Translate Blitz: A comprehensive English-to-Spanish translation game with enhanced voice recognition.">
+  <title>Translate Blitz Pro - Enhanced Voice</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
   <style>
     * {
@@ -272,16 +272,6 @@
       display: none;
     }
 
-    .pronunciation-display {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 15px;
-      padding: 20px;
-      margin: 15px 0;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      display: none;
-    }
-
     .voice-recognition {
       background: rgba(255, 255, 255, 0.1);
       border-radius: 15px;
@@ -297,6 +287,39 @@
       color: #ffa726;
       font-weight: 600;
       margin-bottom: 20px;
+    }
+
+    .pronunciation-audio {
+      background: rgba(255, 167, 38, 0.2);
+      border: 1px solid #ffa726;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .pronunciation-controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+
+    .play-button {
+      background: linear-gradient(45deg, #ffa726, #ff7043);
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 1.5rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .play-button:hover {
+      transform: scale(1.1);
     }
 
     .pronunciation-rounds {
@@ -343,23 +366,40 @@
       background: linear-gradient(45deg, #ff6b6b, #ffa726);
       border: none;
       border-radius: 50%;
-      width: 80px;
-      height: 80px;
-      font-size: 2rem;
+      width: 100px;
+      height: 100px;
+      font-size: 2.5rem;
       color: white;
       cursor: pointer;
       transition: all 0.3s ease;
       margin: 20px auto;
       display: block;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      position: relative;
     }
 
     .mic-button:hover {
-      transform: scale(1.1);
+      transform: scale(1.05);
     }
 
     .mic-button.recording {
       background: linear-gradient(45deg, #ff4757, #ff3838);
+      animation: recording 1s ease-in-out infinite;
+      box-shadow: 0 0 30px rgba(255, 71, 87, 0.6);
+    }
+
+    .mic-volume-indicator {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      background: #4ecdc4;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
       animation: pulse 0.5s ease-in-out infinite;
     }
 
@@ -416,6 +456,37 @@
       text-transform: uppercase;
     }
 
+    .voice-wave {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 3px;
+      margin: 15px 0;
+    }
+
+    .wave-bar {
+      width: 4px;
+      height: 20px;
+      background: #ffa726;
+      border-radius: 2px;
+      animation: wave 1.5s ease-in-out infinite;
+    }
+
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+    .microphone-setup {
+      background: rgba(255, 167, 38, 0.1);
+      border: 1px solid #ffa726;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px 0;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
     .errors-review {
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
@@ -445,8 +516,13 @@
     }
 
     @keyframes recording {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.2); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 71, 87, 0.6); }
+      50% { transform: scale(1.1); box-shadow: 0 0 50px rgba(255, 71, 87, 0.9); }
+    }
+
+    @keyframes wave {
+      0%, 100% { height: 20px; }
+      50% { height: 40px; }
     }
 
     .processing-indicator {
@@ -460,30 +536,35 @@
       margin-right: 10px;
     }
 
-    .voice-wave {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 3px;
-      margin: 15px 0;
-    }
-
-    .wave-bar {
-      width: 4px;
-      height: 20px;
-      background: #ffa726;
-      border-radius: 2px;
-      animation: wave 1.5s ease-in-out infinite;
-    }
-
-    .wave-bar:nth-child(2) { animation-delay: 0.1s; }
-    .wave-bar:nth-child(3) { animation-delay: 0.2s; }
-    .wave-bar:nth-child(4) { animation-delay: 0.3s; }
-    .wave-bar:nth-child(5) { animation-delay: 0.4s; }
-
-    @keyframes wave {
-      0%, 100% { height: 20px; }
-      50% { height: 40px; }
+    @media (max-width: 768px) {
+      .game-title {
+        font-size: 2rem;
+      }
+      
+      .controls-panel {
+        flex-direction: column;
+        padding: 20px;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .pronunciation-rounds {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      
+      .mic-button {
+        width: 80px;
+        height: 80px;
+        font-size: 2rem;
+      }
+      
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
     }
   </style>
 </head>
@@ -491,7 +572,7 @@
   <div class="game-container">
     <div class="game-header">
       <h1 class="game-title">🌟 Translate Blitz Pro</h1>
-      <p class="game-subtitle">Advanced Voice Recognition & Pronunciation Training</p>
+      <p class="game-subtitle">Enhanced Voice Recognition & Pronunciation Training</p>
     </div>
 
     <div class="controls-panel" id="controlsPanel">
@@ -617,9 +698,39 @@
     </div>
 
     <div class="voice-recognition" id="voiceRecognition">
-      <div class="voice-title">🎤 Voice Pronunciation Practice</div>
-      <div style="color: rgba(255, 255, 255, 0.9); margin-bottom: 20px; font-size: 1.1rem;">
-        Now practice pronouncing: "<span id="pronunciationWord" style="color: #ffd700; font-weight: 600;"></span>"
+      <div class="voice-title">🎤 Enhanced Voice Pronunciation Practice</div>
+      <div style="color: rgba(255, 255, 255, 0.9); margin-bottom: 20px; font-size: 1.1rem; text-align: center;">
+        Practice pronouncing: "<span id="pronunciationWord" style="color: #ffd700; font-weight: 600; font-size: 1.3rem;"></span>"
+      </div>
+
+      <div class="pronunciation-audio">
+        <div style="color: #ffa726; font-weight: 600; margin-bottom: 15px; text-align: center;">
+          🔊 Listen to the correct pronunciation (click as many times as needed):
+        </div>
+        <div class="pronunciation-controls">
+          <button class="play-button" id="playPronunciation" title="Play pronunciation">
+            ▶️
+          </button>
+          <button class="play-button" id="playSlowPronunciation" title="Play slow pronunciation">
+            🐌
+          </button>
+          <button class="play-button" id="repeatPronunciation" title="Repeat 3 times">
+            🔄
+          </button>
+        </div>
+        <div style="text-align: center; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; margin-top: 10px;">
+          Phonetic: <span id="phoneticDisplay" style="font-family: monospace; color: #ffa726;"></span>
+        </div>
+      </div>
+
+      <div class="microphone-setup">
+        <div style="font-weight: 600; margin-bottom: 10px; color: #ffa726;">🎤 Microphone Enhanced for Better Detection:</div>
+        <div style="font-size: 0.85rem; line-height: 1.4;">
+          • Automatic gain control enabled<br>
+          • Noise reduction active<br>
+          • Pronunciation tolerance: Relaxed (50%+ similarity accepted)<br>
+          • Speak clearly and at normal volume
+        </div>
       </div>
 
       <div class="pronunciation-rounds" id="pronunciationRounds">
@@ -642,6 +753,7 @@
 
       <button class="mic-button" id="micButton" title="Click to start recording">
         🎤
+        <div class="mic-volume-indicator" id="volumeIndicator">📊</div>
       </button>
 
       <div class="voice-wave" id="voiceWave" style="display: none;">
@@ -672,13 +784,6 @@
           <span class="score-label">Overall</span>
         </div>
       </div>
-
-    <div class="pronunciation-display" id="pronunciationDisplay">
-      <div style="font-size: 1.8rem; color: #ffa726; font-weight: 600; margin-bottom: 15px;" id="pronunciationText"></div>
-      <div style="font-size: 1.2rem; color: rgba(255, 255, 255, 0.8); font-family: 'Courier New', monospace; margin-bottom: 15px;" id="pronunciationPhonetic"></div>
-      <button style="background: linear-gradient(45deg, #ffa726, #ff7043); min-width: 180px;" id="pronunciationButton">
-        🔊 Play Pronunciation
-      </button>
     </div>
 
     <div class="errors-review" id="errorsReview">
@@ -696,7 +801,7 @@
       </div>
       <div class="stat-card">
         <span class="stat-number" id="finalAccuracy">0%</span>
-        <span class="stat-label">Accuracy</span>
+        <span class="stat-label">Translation</span>
       </div>
       <div class="stat-card">
         <span class="stat-number" id="finalTime">0s</span>
@@ -741,7 +846,7 @@
     let maxPronunciationAttempts = 3;
     let translationCache = {};
 
-    // Voice recognition variables
+    // Enhanced voice recognition variables
     let recognition = null;
     let isRecording = false;
     let currentPronunciationRound = 1;
@@ -749,6 +854,11 @@
     let speechSynthesis = window.speechSynthesis;
     let totalPronunciationScore = 0;
     let pronunciationStartTime = 0;
+    let audioContext = null;
+    let mediaStream = null;
+    let analyser = null;
+    let microphone = null;
+    let gainNode = null;
 
     // Enhanced translation dictionary
     const translationDictionary = {
@@ -829,73 +939,267 @@
       }
     }
 
-    // Voice Recognition Setup
-    function initializeVoiceRecognition() {
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
+    // Enhanced Voice Recognition Setup with Amplification
+    async function initializeEnhancedVoiceRecognition() {
+      console.log('🎤 Initializing enhanced voice recognition with amplification...');
+      
+      try {
+        // Initialize Web Audio API for amplification
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
         
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-        recognition.maxAlternatives = 3;
-        
-        recognition.onstart = function() {
-          console.log('🎤 Voice recognition started');
-          isRecording = true;
-          updateMicButton();
-          showVoiceWave();
-          showFeedback('🎤 Listening... Speak now!', 'info');
-        };
-        
-        recognition.onend = function() {
-          console.log('🎤 Voice recognition ended');
-          isRecording = false;
-          updateMicButton();
-          hideVoiceWave();
-        };
-        
-        recognition.onresult = function(event) {
-          const result = event.results[0];
-          const spokenText = result[0].transcript.toLowerCase().trim();
-          const confidence = result[0].confidence;
-          
-          console.log(`🗣️ Heard: "${spokenText}" (confidence: ${(confidence * 100).toFixed(1)}%)`);
-          
-          processPronunciationResult(spokenText, confidence);
-        };
-        
-        recognition.onerror = function(event) {
-          console.error('🚫 Speech recognition error:', event.error);
-          isRecording = false;
-          updateMicButton();
-          hideVoiceWave();
-          
-          let errorMessage = 'Voice recognition error. ';
-          switch(event.error) {
-            case 'no-speech':
-              errorMessage += 'No speech detected. Please try again.';
-              break;
-            case 'audio-capture':
-              errorMessage += 'Microphone not accessible.';
-              break;
-            case 'not-allowed':
-              errorMessage += 'Microphone permission denied.';
-              break;
-            default:
-              errorMessage += 'Please try again.';
+        // Request microphone access with enhanced settings
+        const constraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 44100,
+            channelCount: 1,
+            volume: 1.0
           }
-          
-          showFeedback(errorMessage, 'error');
         };
         
-        console.log('✅ Voice recognition initialized successfully');
-        return true;
-      } else {
-        console.warn('⚠️ Speech recognition not supported in this browser');
-        showFeedback('Voice recognition not supported in this browser', 'error');
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log('✅ Microphone access granted with enhanced settings');
+        
+        // Set up audio processing for amplification
+        setupAudioAmplification(mediaStream);
+        
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          
+          // Enhanced recognition settings
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = 'en-US';
+          recognition.maxAlternatives = 5; // More alternatives for better matching
+          
+          recognition.onstart = function() {
+            console.log('🎤 Enhanced voice recognition started');
+            isRecording = true;
+            updateMicButton();
+            showVoiceWave();
+            showFeedback('🎤 Listening with enhanced sensitivity... Speak clearly!', 'info');
+            startVolumeMonitoring();
+          };
+          
+          recognition.onend = function() {
+            console.log('🎤 Voice recognition ended');
+            isRecording = false;
+            updateMicButton();
+            hideVoiceWave();
+            stopVolumeMonitoring();
+          };
+          
+          recognition.onresult = function(event) {
+            console.log('🗣️ Processing speech results...');
+            
+            // Process all alternatives for better matching
+            const results = [];
+            for (let i = 0; i < event.results[0].length; i++) {
+              results.push({
+                transcript: event.results[0][i].transcript.toLowerCase().trim(),
+                confidence: event.results[0][i].confidence
+              });
+            }
+            
+            // Find best match
+            const bestResult = findBestMatch(results, currentPhrase.english.toLowerCase());
+            console.log(`🎯 Best match: "${bestResult.transcript}" (confidence: ${(bestResult.confidence * 100).toFixed(1)}%)`);
+            
+            processPronunciationResult(bestResult.transcript, bestResult.confidence);
+          };
+          
+          recognition.onerror = function(event) {
+            console.error('🚫 Speech recognition error:', event.error);
+            isRecording = false;
+            updateMicButton();
+            hideVoiceWave();
+            stopVolumeMonitoring();
+            
+            let errorMessage = 'Voice recognition error. ';
+            switch(event.error) {
+              case 'no-speech':
+                errorMessage += 'No speech detected. Please speak louder and try again.';
+                break;
+              case 'audio-capture':
+                errorMessage += 'Microphone not accessible. Check permissions.';
+                break;
+              case 'not-allowed':
+                errorMessage += 'Microphone permission denied. Please allow access.';
+                break;
+              case 'network':
+                errorMessage += 'Network error. Check connection and try again.';
+                break;
+              default:
+                errorMessage += 'Please try speaking more clearly.';
+            }
+            
+            showFeedback(errorMessage, 'error');
+          };
+          
+          console.log('✅ Enhanced voice recognition initialized successfully');
+          return true;
+        } else {
+          throw new Error('Speech recognition not supported');
+        }
+        
+      } catch (error) {
+        console.error('❌ Error initializing enhanced voice recognition:', error);
+        showFeedback('Enhanced voice recognition not available. Please check microphone permissions.', 'error');
         return false;
       }
+    }
+
+    function setupAudioAmplification(stream) {
+      try {
+        // Create audio nodes for amplification
+        microphone = audioContext.createMediaStreamSource(stream);
+        gainNode = audioContext.createGain();
+        analyser = audioContext.createAnalyser();
+        
+        // Set up amplification (increase gain for better detection)
+        gainNode.gain.value = 2.5; // Amplify input by 2.5x
+        
+        // Configure analyser for volume monitoring
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        
+        // Connect audio nodes
+        microphone.connect(gainNode);
+        gainNode.connect(analyser);
+        
+        console.log('🔊 Audio amplification setup complete (2.5x gain)');
+      } catch (error) {
+        console.error('❌ Error setting up audio amplification:', error);
+      }
+    }
+
+    function findBestMatch(results, targetWord) {
+      let bestMatch = results[0];
+      let bestSimilarity = 0;
+      
+      for (let result of results) {
+        const similarity = calculateEnhancedSimilarity(result.transcript, targetWord);
+        const weightedScore = (similarity * 0.7) + (result.confidence * 100 * 0.3);
+        
+        if (weightedScore > bestSimilarity) {
+          bestSimilarity = weightedScore;
+          bestMatch = result;
+        }
+      }
+      
+      return bestMatch;
+    }
+
+    function calculateEnhancedSimilarity(spoken, target) {
+      // Enhanced similarity calculation with relaxed matching
+      const spokenNorm = normalizeForComparison(spoken);
+      const targetNorm = normalizeForComparison(target);
+      
+      console.log(`🔍 Comparing: "${spokenNorm}" vs "${targetNorm}"`);
+      
+      // Exact match - highest score
+      if (spokenNorm === targetNorm) {
+        console.log('✅ Exact match found!');
+        return 100;
+      }
+      
+      // Check if spoken contains target or vice versa
+      if (spokenNorm.includes(targetNorm) || targetNorm.includes(spokenNorm)) {
+        console.log('✅ Partial match found!');
+        return 85;
+      }
+      
+      // Levenshtein distance with relaxed threshold
+      const distance = levenshteinDistance(spokenNorm, targetNorm);
+      const maxLength = Math.max(spokenNorm.length, targetNorm.length);
+      const similarity = Math.max(0, (maxLength - distance) / maxLength * 100);
+      
+      // Check for phonetic similarity (common mispronunciations)
+      const phoneticSimilarity = checkPhoneticSimilarity(spokenNorm, targetNorm);
+      
+      // Use the higher score
+      const finalSimilarity = Math.max(similarity, phoneticSimilarity);
+      
+      console.log(`📊 Similarity scores: Levenshtein=${similarity.toFixed(1)}%, Phonetic=${phoneticSimilarity.toFixed(1)}%, Final=${finalSimilarity.toFixed(1)}%`);
+      
+      return finalSimilarity;
+    }
+
+    function normalizeForComparison(text) {
+      return text
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function checkPhoneticSimilarity(spoken, target) {
+      // Common phonetic replacements for better matching
+      const phoneticMap = {
+        'ph': 'f', 'th': 't', 'ck': 'k', 'ch': 'sh',
+        'c': 'k', 'z': 's', 'x': 'ks', 'qu': 'kw'
+      };
+      
+      let spokenPhonetic = spoken;
+      let targetPhonetic = target;
+      
+      // Apply phonetic transformations
+      for (let [pattern, replacement] of Object.entries(phoneticMap)) {
+        spokenPhonetic = spokenPhonetic.replace(new RegExp(pattern, 'g'), replacement);
+        targetPhonetic = targetPhonetic.replace(new RegExp(pattern, 'g'), replacement);
+      }
+      
+      // Calculate similarity on phonetic versions
+      const distance = levenshteinDistance(spokenPhonetic, targetPhonetic);
+      const maxLength = Math.max(spokenPhonetic.length, targetPhonetic.length);
+      return Math.max(0, (maxLength - distance) / maxLength * 100);
+    }
+
+    function startVolumeMonitoring() {
+      if (!analyser) return;
+      
+      const volumeIndicator = document.getElementById('volumeIndicator');
+      volumeIndicator.style.display = 'flex';
+      
+      function updateVolume() {
+        if (!isRecording || !analyser) return;
+        
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+        const volumePercent = (average / 255) * 100;
+        
+        // Update volume indicator
+        if (volumePercent > 20) {
+          volumeIndicator.textContent = '🔊';
+          volumeIndicator.style.background = '#4ecdc4';
+        } else if (volumePercent > 10) {
+          volumeIndicator.textContent = '🔉';
+          volumeIndicator.style.background = '#ffa726';
+        } else {
+          volumeIndicator.textContent = '🔈';
+          volumeIndicator.style.background = '#ff6b6b';
+        }
+        
+        if (isRecording) {
+          requestAnimationFrame(updateVolume);
+        }
+      }
+      
+      updateVolume();
+    }
+
+    function stopVolumeMonitoring() {
+      const volumeIndicator = document.getElementById('volumeIndicator');
+      volumeIndicator.style.display = 'none';
     }
 
     function normalizeText(text) {
@@ -941,13 +1245,13 @@
         particles.push(new Particle());
       }
       
-      // Initialize voice recognition
-      initializeVoiceRecognition();
+      // Initialize enhanced voice recognition
+      initializeEnhancedVoiceRecognition();
       
       // Load default words immediately
       loadDefaultWords();
       
-      console.log('🎮 Game initialized successfully!');
+      console.log('🎮 Enhanced game initialized successfully!');
       console.log(`📅 Session Date: ${getCurrentDateTime()}`);
       console.log(`👤 User: ${getCurrentUser()}`);
     }
@@ -1032,11 +1336,11 @@
       if (!fileLoaded && phrases.length === 0) {
         text('🚀 Loading Game...', width/2, height/2 - 40);
         textSize(18);
-        text('Preparing comprehensive vocabulary', width/2, height/2 + 20);
+        text('Preparing enhanced voice recognition', width/2, height/2 + 20);
       } else {
         text('🎯 Ready to Begin!', width/2, height/2 - 40);
         textSize(20);
-        text(`${phrases.length} words loaded with voice recognition`, width/2, height/2 + 20);
+        text(`${phrases.length} words loaded with enhanced voice`, width/2, height/2 + 20);
       }
     }
 
@@ -1055,7 +1359,7 @@
     function drawVoiceRecognition() {
       fill(255, 165, 0);
       textSize(28);
-      text('🎤 Voice Recognition Active', width/2, height/2 - 80);
+      text('🎤 Enhanced Voice Recognition', width/2, height/2 - 80);
       
       fill(255);
       textSize(24);
@@ -1063,13 +1367,13 @@
       
       fill(255, 165, 0);
       textSize(18);
-      text(`Round ${currentPronunciationRound} of 3`, width/2, height/2);
+      text(`Round ${currentPronunciationRound} of 3 (Relaxed Matching)`, width/2, height/2);
       
       // Show recording status
       if (isRecording) {
         fill(255, 107, 107);
         textSize(16);
-        text('🔴 Recording...', width/2, height/2 + 40);
+        text('🔴 Recording with amplification...', width/2, height/2 + 40);
       }
     }
 
@@ -1143,9 +1447,9 @@
       document.getElementById('cacheHits').textContent = cacheHits;
     }
 
-    // Voice Recognition Functions
+    // Enhanced Voice Recognition Functions
     function startVoiceRecognitionPhase() {
-      console.log('🎤 Starting voice recognition phase');
+      console.log('🎤 Starting enhanced voice recognition phase');
       gameState = 'voiceRecognition';
       
       // Reset pronunciation state
@@ -1159,6 +1463,7 @@
       
       // Set up the word to practice
       document.getElementById('pronunciationWord').textContent = currentPhrase.english;
+      document.getElementById('phoneticDisplay').textContent = currentPhrase.phonetic;
       
       // Reset all rounds to pending
       resetPronunciationRounds();
@@ -1179,29 +1484,52 @@
     }
 
     function playPronunciationExample() {
-      showFeedback('🔊 Listen to the pronunciation first...', 'info');
-      
+      showFeedback('🔊 Listen to the correct pronunciation first...', 'info');
+      playPronunciation(1.0, () => {
+        setTimeout(() => {
+          showFeedback('🎤 Now it\'s your turn! Click the microphone to start (relaxed matching enabled).', 'info');
+          setActiveRound(1);
+        }, 1000);
+      });
+    }
+
+    function playPronunciation(rate = 1.0, callback = null) {
       if (speechSynthesis) {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
         const utterance = new SpeechSynthesisUtterance(currentPhrase.english);
         utterance.lang = 'en-US';
-        utterance.rate = 0.8;
+        utterance.rate = rate;
         utterance.pitch = 1;
         utterance.volume = 1;
         
-        utterance.onend = () => {
-          setTimeout(() => {
-            showFeedback('🎤 Now it\'s your turn! Click the microphone to start.', 'info');
-            setActiveRound(1);
-          }, 1000);
-        };
-        
-        speechSynthesis.speak(utterance);
+        if (callback) {
+          utterance.onend = callback;
+        }
+         speechSynthesis.speak(utterance);
+        console.log(`🔊 Playing pronunciation at rate ${rate}`);
       } else {
-        setTimeout(() => {
-          showFeedback('🎤 Click the microphone to start pronunciation practice.', 'info');
-          setActiveRound(1);
-        }, 2000);
+        console.warn('⚠️ Speech synthesis not available');
+        if (callback) callback();
       }
+    }
+
+    function playSlowPronunciation() {
+      playPronunciation(0.6);
+    }
+
+    function playRepeatPronunciation() {
+      let count = 0;
+      function playNext() {
+        if (count < 3) {
+          count++;
+          playPronunciation(1.0, () => {
+            setTimeout(playNext, 800);
+          });
+        }
+      }
+      playNext();
     }
 
     function setActiveRound(roundNumber) {
@@ -1224,7 +1552,7 @@
 
     function startRecording() {
       if (!recognition) {
-        showFeedback('Voice recognition not available', 'error');
+        showFeedback('Enhanced voice recognition not available. Please check microphone permissions.', 'error');
         return;
       }
       
@@ -1234,25 +1562,32 @@
       }
       
       try {
+        // Resume audio context if suspended
+        if (audioContext && audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
         recognition.start();
       } catch (error) {
-        console.error('Error starting recognition:', error);
-        showFeedback('Error starting voice recognition', 'error');
+        console.error('Error starting enhanced recognition:', error);
+        showFeedback('Error starting voice recognition. Please try again.', 'error');
       }
     }
 
     function processPronunciationResult(spokenText, confidence) {
       const targetWord = currentPhrase.english.toLowerCase();
-      const similarity = calculateSimilarity(spokenText, targetWord);
+      const similarity = calculateEnhancedSimilarity(spokenText, targetWord);
       
       console.log(`🎯 Target: "${targetWord}", Spoken: "${spokenText}"`);
-      console.log(`📊 Similarity: ${similarity}%, Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`📊 Enhanced Similarity: ${similarity}%, Confidence: ${(confidence * 100).toFixed(1)}%`);
       
-      // Calculate scores
+      // Enhanced scoring with relaxed thresholds
       const accuracyScore = similarity;
       const clarityScore = confidence * 100;
       const speedScore = calculateSpeedScore();
-      const overallScore = (accuracyScore + clarityScore + speedScore) / 3;
+      
+      // Weighted overall score (favor accuracy and clarity)
+      const overallScore = (accuracyScore * 0.5) + (clarityScore * 0.3) + (speedScore * 0.2);
       
       // Store result
       pronunciationResults.push({
@@ -1264,53 +1599,43 @@
         overall: overallScore
       });
       
-      // Update round status
+      // Update round status with relaxed acceptance criteria
       const roundEl = document.getElementById(`round${currentPronunciationRound}`);
       const statusEl = document.getElementById(`round${currentPronunciationRound}Status`);
       
-      if (overallScore >= 70) {
+      if (overallScore >= 50) { // Relaxed from 70% to 50%
         roundEl.className = 'round-card round-success';
         statusEl.textContent = `${overallScore.toFixed(0)}% ✅`;
-        showFeedback(`🎉 Great pronunciation! Score: ${overallScore.toFixed(1)}%`, 'success');
-      } else if (overallScore >= 40) {
+        showFeedback(`🎉 Great pronunciation! Score: ${overallScore.toFixed(1)}% (Accepted)`, 'success');
+      } else if (overallScore >= 30) { // Relaxed from 40% to 30%
         roundEl.className = 'round-card round-success';
         statusEl.textContent = `${overallScore.toFixed(0)}% ⚠️`;
-        showFeedback(`🔄 Good attempt! Score: ${overallScore.toFixed(1)}%. Try again for better accuracy.`, 'info');
+        showFeedback(`🔄 Good attempt! Score: ${overallScore.toFixed(1)}% (Accepted with tolerance)`, 'info');
       } else {
         roundEl.className = 'round-card round-failed';
         statusEl.textContent = `${overallScore.toFixed(0)}% ❌`;
-        showFeedback(`🎯 Keep practicing! Score: ${overallScore.toFixed(1)}%. Focus on clarity.`, 'error');
+        showFeedback(`🎯 Keep practicing! Score: ${overallScore.toFixed(1)}%. Try speaking more clearly.`, 'error');
       }
       
       // Update scores display
       updatePronunciationScores(accuracyScore, clarityScore, speedScore, overallScore);
       
-      // Move to next round or finish
+      // Move to next round or finish - ALL 3 ROUNDS ARE MANDATORY
       if (currentPronunciationRound < 3) {
         setTimeout(() => {
           currentPronunciationRound++;
           setActiveRound(currentPronunciationRound);
-          showFeedback(`🎤 Round ${currentPronunciationRound}: Click microphone when ready`, 'info');
-        }, 2000);
+          showFeedback(`🎤 Round ${currentPronunciationRound}: Click microphone to continue`, 'info');
+        }, 2500);
       } else {
+        // All 3 rounds completed
         setTimeout(() => {
-          finishPronunciationPhase();
-        }, 3000);
+          showFeedback(`🎊 All 3 pronunciation rounds completed! Moving to next word...`, 'success');
+          setTimeout(() => {
+            finishPronunciationPhase();
+          }, 1500);
+        }, 2000);
       }
-    }
-
-    function calculateSimilarity(spoken, target) {
-      // Simple similarity calculation using Levenshtein distance
-      const spokenNorm = spoken.toLowerCase().replace(/[^a-z]/g, '');
-      const targetNorm = target.toLowerCase().replace(/[^a-z]/g, '');
-      
-      if (spokenNorm === targetNorm) return 100;
-      
-      const distance = levenshteinDistance(spokenNorm, targetNorm);
-      const maxLength = Math.max(spokenNorm.length, targetNorm.length);
-      const similarity = Math.max(0, (maxLength - distance) / maxLength * 100);
-      
-      return similarity;
     }
 
     function levenshteinDistance(str1, str2) {
@@ -1362,7 +1687,7 @@
     }
 
     function finishPronunciationPhase() {
-      console.log('🏁 Finishing pronunciation phase');
+      console.log('🏁 Finishing enhanced pronunciation phase');
       
       // Calculate average pronunciation score for this word
       const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
@@ -1384,12 +1709,12 @@
       const micButton = document.getElementById('micButton');
       if (isRecording) {
         micButton.className = 'mic-button recording';
-        micButton.textContent = '🔴';
-        micButton.title = 'Recording... Click to stop';
+        micButton.innerHTML = '🔴<div class="mic-volume-indicator" id="volumeIndicator" style="display: flex;">📊</div>';
+        micButton.title = 'Recording with amplification... Click to stop';
       } else {
         micButton.className = 'mic-button';
-        micButton.textContent = '🎤';
-        micButton.title = 'Click to start recording';
+        micButton.innerHTML = '🎤<div class="mic-volume-indicator" id="volumeIndicator">📊</div>';
+        micButton.title = 'Click to start enhanced recording';
       }
     }
 
@@ -1415,20 +1740,7 @@
       }
     }
 
-    function skipPronunciation() {
-      console.log('⏭️ Skipping pronunciation practice');
-      
-      // Add a low score for skipped pronunciation
-      totalPronunciationScore += 20; // Low score for skipping
-      
-      // Hide voice recognition interface
-      document.getElementById('voiceRecognition').style.display = 'none';
-      
-      // Continue to next round
-      nextRound();
-    }
-
-    // File handling functions (simplified for brevity)
+    // File handling functions
     async function handleFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1497,7 +1809,7 @@
       };
     }
 
-       function displayFileAnalysis(analysis) {
+    function displayFileAnalysis(analysis) {
       document.getElementById('fileInfo').style.display = 'block';
       document.getElementById('totalWordsCount').textContent = analysis.totalWords;
       document.getElementById('uniqueWordsCount').textContent = analysis.uniqueWords;
@@ -1510,17 +1822,14 @@
     function extractWordsAndSentences(content) {
       const items = [];
       
-      // Extract individual words
       const words = content.toLowerCase().match(/\b[a-z]+\b/g) || [];
       const uniqueWords = [...new Set(words)];
       
-      // Extract sentences
       const sentences = content.split(/[.!?]+/)
         .map(s => s.trim().toLowerCase())
         .filter(s => s.length > 0 && s.length < 100)
         .filter(s => s.split(' ').length >= 2);
       
-      // Add words
       uniqueWords.forEach(word => {
         if (word.length > 1) {
           items.push({
@@ -1531,7 +1840,6 @@
         }
       });
       
-      // Add sentences
       sentences.forEach(sentence => {
         items.push({
           type: 'sentence',
@@ -1658,7 +1966,7 @@
     }
 
     function startPlaying() {
-      console.log('🎮 Starting game...');
+      console.log('🎮 Starting enhanced game...');
       
       if (phrases.length === 0) {
         alert('❌ No words available. Please wait for words to load or upload a file.');
@@ -1761,7 +2069,7 @@
       
       document.getElementById('inputTranslation').value = '';
       
-      // Start voice recognition phase instead of regular pronunciation
+      // Start enhanced voice recognition phase
       startVoiceRecognitionPhase();
     }
 
@@ -1812,6 +2120,7 @@
       
       document.getElementById('gameInfo').style.display = 'none';
       document.getElementById('translationInput').style.display = 'none';
+      document.getElementById('voiceRecognition').style.display = 'none';
       document.getElementById('errorsReview').style.display = 'block';
       
       const errorsList = document.getElementById('errorsList');
@@ -1912,14 +2221,16 @@
     }
 
     function getCurrentDateTime() {
-      return '2025-06-20 23:12:55';
+      return '2025-06-20 23:37:03';
     }
 
     // Event listeners
     document.getElementById('startButton').addEventListener('click', startPlaying);
     document.getElementById('submitButton').addEventListener('click', submit);
     document.getElementById('micButton').addEventListener('click', startRecording);
-    document.getElementById('skipPronunciation').addEventListener('click', skipPronunciation);
+    document.getElementById('playPronunciation').addEventListener('click', () => playPronunciation(1.0));
+    document.getElementById('playSlowPronunciation').addEventListener('click', playSlowPronunciation);
+    document.getElementById('repeatPronunciation').addEventListener('click', playRepeatPronunciation);
     document.getElementById('retryButton').addEventListener('click', startRetryRound);
 
     document.getElementById('inputTranslation').addEventListener('keypress', function(e) {
@@ -1941,13 +2252,15 @@
       }
     });
 
-    // Initialize game
+    // Initialize enhanced game
     window.addEventListener('load', function() {
-      console.log('🎮 Translate Blitz Pro - Voice Recognition loaded successfully!');
+      console.log('🎮 Translate Blitz Pro - Enhanced Voice loaded successfully!');
       console.log(`📚 Dictionary with ${Object.keys(translationDictionary).length} entries ready!`);
       console.log(`👋 Welcome, ${getCurrentUser()}!`);
-      console.log(`📅 ${getCurrentDateTime()}`);
-      console.log('🎤 Voice recognition system initialized');
+      console.log(`📅 Current Date: ${getCurrentDateTime()}`);
+      console.log('🎤 Enhanced voice recognition with amplification initialized');
+      console.log('🔊 Relaxed pronunciation matching enabled (50%+ acceptance)');
+      console.log('🎵 Unlimited audio repetition available');
     });
   </script>
 </body>
