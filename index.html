@@ -1275,6 +1275,15 @@
       
       fileLoaded = true;
       updateUI();
+      
+      // Display file analysis for default words
+      displayFileAnalysis({
+        totalWords: words.length,
+        uniqueWords: words.length,
+        sentences: 0,
+        characters: words.join(' ').length
+      });
+      
       console.log('✅ Default vocabulary loaded:', phrases.length, 'words');
     }
 
@@ -2291,6 +2300,12 @@
       console.log('🎤 Enhanced voice recognition with amplification initialized');
       console.log('🔊 Relaxed pronunciation matching enabled (50%+ acceptance)');
       console.log('🎵 Unlimited audio repetition available');
+      
+      // Load default words if not already loaded (fallback for p5.js setup)
+      if (phrases.length === 0) {
+        console.log('📚 Loading default words from window load event...');
+        loadDefaultWords();
+      }
     });
   </script>
 </body>
