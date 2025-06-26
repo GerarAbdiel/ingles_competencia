@@ -584,6 +584,7 @@
       <div class="input-group">
         <label class="input-label">⚡ Difficulty</label>
         <select id="typeSelect">
+          <option value="beginner">🐢 Beginner (25s per word)</option>
           <option value="easy">🐌 Easy (15s per word)</option>
           <option value="medium">🚀 Medium (8s per word)</option>
           <option value="hard">⚡ Hard (3s per word)</option>
@@ -828,7 +829,7 @@
     let errors = [];
     let currentPhraseIndex = 0;
     let fileLoaded = false;
-    let difficultyTimes = { easy: 15, medium: 8, hard: 3 };
+    let difficultyTimes = { beginner: 25, easy: 15, medium: 8, hard: 3 };
     let particles = [];
     let color1, color2;
     let countdownTimer = 0;
@@ -1693,6 +1694,32 @@
       const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
       totalPronunciationScore += avgScore;
       
+      // Check if pronunciation failed (below 50% threshold)
+      const pronunciationFailed = avgScore < 50;
+      
+      // Find if there's already a translation error for this word
+      const existingErrorIndex = errors.findIndex(error => 
+        error.word === currentPhrase.english && 
+        (error.errorType === 'Translation Error')
+      );
+      
+      if (pronunciationFailed) {
+        if (existingErrorIndex !== -1) {
+          // Update existing translation error to "Both"
+          errors[existingErrorIndex].errorType = 'Both';
+        } else {
+          // Add new pronunciation error
+          errors.push({
+            word: currentPhrase.english,
+            expected: currentPhrase.spanish.join(' / '),
+            userInput: '(correct translation)',
+            pronunciation: currentPhrase.pronunciation,
+            phonetic: currentPhrase.phonetic,
+            errorType: 'Pronunciation Error'
+          });
+        }
+      }
+      
       // Hide voice recognition interface
       document.getElementById('voiceRecognition').style.display = 'none';
       
@@ -2062,7 +2089,8 @@
           expected: currentPhrase.spanish.join(' / '),
           userInput: input,
           pronunciation: currentPhrase.pronunciation,
-          phonetic: currentPhrase.phonetic
+          phonetic: currentPhrase.phonetic,
+          errorType: 'Translation Error'
         });
         showIncorrectFeedback();
       }
@@ -2081,7 +2109,8 @@
           expected: currentPhrase.spanish.join(' / '),
           userInput: '(timeout)',
           pronunciation: currentPhrase.pronunciation,
-          phonetic: currentPhrase.phonetic
+          phonetic: currentPhrase.phonetic,
+          errorType: 'Translation Error'
         });
       }
       showTimeoutFeedback();
@@ -2141,6 +2170,7 @@
             ${index + 1}. "${error.word}"
           </div>
           <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.4;">
+            <div style="color: #ff9800; font-weight: 600; margin-bottom: 5px;">🏷️ Error Type: ${error.errorType}</div>
             <div>✅ <span style="color: #4ecdc4; font-weight: 500;">Correct: ${error.expected}</span></div>
             <div>❌ <span style="color: #ff6b6b; font-weight: 500;">Your answer: ${error.userInput}</span></div>
             <div>🔊 <span style="color: #4ecdc4; font-weight: 500;">Pronunciation: ${error.phonetic}</span></div>
