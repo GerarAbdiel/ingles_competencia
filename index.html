@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Translate Blitz: A comprehensive English-to-Spanish translation game with enhanced voice recognition.">
-  <title>Translate Blitz Pro - Enhanced Voice</title>
+  <meta name="description" content="Translate Blitz Pro: A comprehensive English-to-Spanish translation game with offline AI and enhanced voice recognition.">
+  <title>Translate Blitz Pro - Offline AI Edition</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
   <style>
     * {
@@ -612,7 +612,7 @@
   <div class="game-container">
     <div class="game-header">
       <h1 class="game-title">🌟 Translate Blitz Pro</h1>
-      <p class="game-subtitle">Enhanced Voice Recognition & Pronunciation Training</p>
+      <p class="game-subtitle">Offline AI & Enhanced Voice Recognition</p>
     </div>
 
     <div class="controls-panel" id="controlsPanel">
@@ -906,11 +906,8 @@
     let maxPronunciationAttempts = 3;
     let translationCache = {};
 
-    // OpenRouter AI Integration
-    // AI Configuration - DISABLED for offline mode
-    const USE_AI = false; // Set to false for offline mode
-    const OPENROUTER_API_KEY = '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';
-    const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+    // Offline AI System - No external APIs required
+    // This system uses advanced local algorithms for semantic analysis
     let aiCache = new Map();
 
     // Enhanced voice recognition variables
@@ -970,31 +967,210 @@
     class OfflineAI {
       constructor() {
         this.synonymDict = {
-          // Spanish synonyms for better validation
-          'bueno': ['bien', 'correcto', 'excelente', 'perfecto'],
-          'malo': ['incorrecto', 'erróneo', 'equivocado'],
-          'grande': ['enorme', 'gigante', 'inmenso', 'amplio'],
-          'pequeño': ['chico', 'diminuto', 'minúsculo', 'poco'],
-          'feliz': ['alegre', 'contento', 'gozoso'],
-          'triste': ['melancólico', 'deprimido', 'afligido'],
-          'casa': ['hogar', 'vivienda', 'domicilio', 'residencia'],
-          'trabajo': ['empleo', 'ocupación', 'labor', 'oficio'],
-          'comida': ['alimento', 'sustento', 'nutrición'],
-          'agua': ['líquido', 'bebida'],
-          'amigo': ['compañero', 'camarada', 'colega'],
-          'hermoso': ['bello', 'lindo', 'precioso', 'atractivo'],
-          'inteligente': ['listo', 'astuto', 'brillante', 'sabio'],
-          'rápido': ['veloz', 'ligero', 'ágil'],
-          'lento': ['pausado', 'calmado', 'tranquilo']
+          // Spanish synonyms for better validation (expanded)
+          'bueno': ['bien', 'correcto', 'excelente', 'perfecto', 'adecuado', 'apropiado'],
+          'malo': ['incorrecto', 'erróneo', 'equivocado', 'inadecuado'],
+          'grande': ['enorme', 'gigante', 'inmenso', 'amplio', 'extenso', 'vasto'],
+          'pequeño': ['chico', 'diminuto', 'minúsculo', 'poco', 'reducido', 'mínimo'],
+          'feliz': ['alegre', 'contento', 'gozoso', 'dichoso', 'jovial'],
+          'triste': ['melancólico', 'deprimido', 'afligido', 'doliente', 'pesaroso'],
+          'casa': ['hogar', 'vivienda', 'domicilio', 'residencia', 'morada'],
+          'trabajo': ['empleo', 'ocupación', 'labor', 'oficio', 'tarea', 'faena'],
+          'comida': ['alimento', 'sustento', 'nutrición', 'manjar', 'vianda'],
+          'agua': ['líquido', 'bebida', 'fluido'],
+          'amigo': ['compañero', 'camarada', 'colega', 'socio', 'aliado'],
+          'hermoso': ['bello', 'lindo', 'precioso', 'atractivo', 'bonito', 'guapo'],
+          'inteligente': ['listo', 'astuto', 'brillante', 'sabio', 'hábil', 'ingenioso'],
+          'rápido': ['veloz', 'ligero', 'ágil', 'presto', 'acelerado'],
+          'lento': ['pausado', 'calmado', 'tranquilo', 'despacio', 'moroso'],
+          'hola': ['saludos', 'hey'],
+          'adiós': ['hasta luego', 'nos vemos', 'chao'],
+          'gracias': ['muchas gracias', 'te agradezco', 'mil gracias'],
+          'perro': ['can', 'mascota', 'cachorro'],
+          'gato': ['felino', 'minino', 'gatito'],
+          'coche': ['auto', 'automóvil', 'vehículo', 'carro'],
+          'libro': ['texto', 'obra', 'volumen', 'ejemplar'],
+          'escuela': ['colegio', 'instituto', 'centro educativo'],
+          'estudiante': ['alumno', 'discípulo', 'colegial'],
+          'maestro': ['profesor', 'docente', 'educador', 'instructor'],
+          'dinero': ['plata', 'efectivo', 'capital', 'moneda'],
+          'ciudad': ['urbe', 'población', 'localidad', 'municipio'],
+          'país': ['nación', 'estado', 'patria', 'territorio'],
+          'mundo': ['planeta', 'tierra', 'globo', 'universo'],
+          'tiempo': ['hora', 'momento', 'época', 'período'],
+          'día': ['jornada', 'fecha'],
+          'noche': ['nocturnidad', 'oscuridad'],
+          'año': ['anualidad', 'ejercicio'],
+          'mes': ['mensualidad'],
+          'semana': ['hebdomada'],
+          'niño': ['menor', 'infante', 'crío', 'pequeño'],
+          'hombre': ['varón', 'caballero', 'señor'],
+          'mujer': ['dama', 'señora', 'fémina'],
+          'padre': ['papá', 'progenitor'],
+          'madre': ['mamá', 'progenitora'],
+          'hijo': ['vástago', 'descendiente'],
+          'hija': ['vástaga', 'descendiente'],
+          'hermano': ['hermano menor', 'hermano mayor', 'familiar'],
+          'hermana': ['hermana menor', 'hermana mayor', 'familiar'],
+          'familia': ['parentela', 'clan', 'estirpe'],
+          'amor': ['cariño', 'afecto', 'ternura', 'pasión'],
+          'odio': ['rencor', 'desprecio', 'aversión'],
+          'miedo': ['temor', 'terror', 'pánico', 'susto'],
+          'alegría': ['gozo', 'júbilo', 'regocijo', 'felicidad'],
+          'dolor': ['sufrimiento', 'pena', 'mal', 'molestia'],
+          'salud': ['bienestar', 'sanidad'],
+          'enfermedad': ['dolencia', 'mal', 'patología'],
+          'vida': ['existencia', 'vivencia'],
+          'muerte': ['fallecimiento', 'defunción', 'óbito'],
+          'paz': ['tranquilidad', 'sosiego', 'calma'],
+          'guerra': ['conflicto', 'batalla', 'lucha'],
+          'verdad': ['realidad', 'veracidad', 'certeza'],
+          'mentira': ['falsedad', 'engaño', 'embuste'],
+          'luz': ['claridad', 'luminosidad', 'resplandor'],
+          'oscuridad': ['tinieblas', 'sombra', 'negrura'],
+          'fuego': ['lumbre', 'llama', 'hoguera'],
+          'aire': ['viento', 'brisa', 'atmósfera'],
+          'tierra': ['suelo', 'terreno', 'planeta'],
+          'mar': ['océano', 'agua salada'],
+          'río': ['corriente', 'afluente', 'cauce'],
+          'montaña': ['monte', 'cerro', 'pico', 'cordillera'],
+          'cielo': ['firmamento', 'bóveda celeste'],
+          'sol': ['astro rey', 'estrella'],
+          'luna': ['satélite', 'astro nocturno'],
+          'estrella': ['astro', 'lucero'],
+          'flor': ['floración', 'capullo'],
+          'árbol': ['planta', 'vegetal'],
+          'fruta': ['fruto', 'producto'],
+          'verdura': ['vegetal', 'hortaliza'],
+          'carne': ['proteína', 'alimento'],
+          'pescado': ['pez', 'marisco'],
+          'pan': ['hogaza', 'bollo'],
+          'leche': ['lácteo', 'producto lácteo'],
+          'queso': ['lácteo', 'derivado'],
+          'huevo': ['óvulo', 'producto'],
+          'azúcar': ['dulce', 'endulzante'],
+          'sal': ['condimento', 'mineral'],
+          'aceite': ['grasa', 'lípido'],
+          'vino': ['bebida', 'alcohol'],
+          'cerveza': ['bebida', 'alcohol'],
+          'café': ['bebida', 'infusión'],
+          'té': ['bebida', 'infusión'],
+          'música': ['melodía', 'sonido', 'armonía'],
+          'canción': ['melodía', 'tema musical'],
+          'baile': ['danza', 'coreografía'],
+          'pintura': ['cuadro', 'obra de arte'],
+          'película': ['film', 'cinta', 'largometraje'],
+          'televisión': ['tv', 'televisor'],
+          'radio': ['receptor', 'aparato'],
+          'teléfono': ['móvil', 'celular', 'aparato'],
+          'computadora': ['ordenador', 'pc', 'equipo'],
+          'internet': ['red', 'web'],
+          'correo': ['email', 'mensaje', 'carta'],
+          'juego': ['entretenimiento', 'diversión', 'pasatiempo'],
+          'deporte': ['actividad física', 'ejercicio'],
+          'fútbol': ['balompié', 'soccer'],
+          'viaje': ['travesía', 'excursión', 'turismo'],
+          'vacaciones': ['descanso', 'feriado'],
+          'hotel': ['hospedaje', 'alojamiento'],
+          'restaurante': ['local', 'establecimiento'],
+          'tienda': ['comercio', 'negocio', 'local'],
+          'mercado': ['plaza', 'centro comercial'],
+          'banco': ['entidad financiera', 'institución'],
+          'hospital': ['clínica', 'centro médico'],
+          'médico': ['doctor', 'galeno', 'facultativo'],
+          'enfermera': ['asistente', 'cuidadora'],
+          'medicina': ['fármaco', 'medicamento', 'remedio'],
+          'coche': ['automóvil', 'vehículo', 'auto'],
+          'autobús': ['bus', 'ómnibus', 'transporte'],
+          'tren': ['ferrocarril', 'convoy'],
+          'avión': ['aeronave', 'nave'],
+          'barco': ['embarcación', 'nave', 'buque'],
+          'bicicleta': ['bici', 'velocípedo'],
+          'calle': ['vía', 'arteria', 'calzada'],
+          'puente': ['viaducto', 'paso'],
+          'edificio': ['construcción', 'inmueble'],
+          'iglesia': ['templo', 'basílica'],
+          'parque': ['jardín', 'área verde'],
+          'playa': ['costa', 'litoral'],
+          'bosque': ['selva', 'arboleda'],
+          'desierto': ['erial', 'yermo'],
+          'invierno': ['estación fría', 'temporada'],
+          'verano': ['estación calida', 'temporada'],
+          'primavera': ['estación', 'temporada'],
+          'otoño': ['estación', 'temporada'],
+          'lluvia': ['precipitación', 'aguacero'],
+          'nieve': ['precipitación', 'nevada'],
+          'viento': ['brisa', 'corriente de aire'],
+          'calor': ['temperatura alta', 'bochorno'],
+          'frío': ['temperatura baja', 'frialdad'],
+          'ropa': ['vestimenta', 'indumentaria', 'vestuario'],
+          'camisa': ['blusa', 'prenda'],
+          'pantalón': ['prenda', 'vestimenta'],
+          'zapatos': ['calzado', 'footwear'],
+          'sombrero': ['gorro', 'prenda'],
+          'reloj': ['cronómetro', 'timepiece'],
+          'anillo': ['sortija', 'joya'],
+          'collar': ['joya', 'adorno'],
+          'bolso': ['cartera', 'mochila'],
+          'mesa': ['mueble', 'superficie'],
+          'silla': ['asiento', 'mueble'],
+          'cama': ['lecho', 'mueble'],
+          'sofá': ['sillón', 'mueble'],
+          'ventana': ['abertura', 'vano'],
+          'puerta': ['entrada', 'acceso'],
+          'pared': ['muro', 'tabique'],
+          'suelo': ['piso', 'superficie'],
+          'techo': ['cubierta', 'parte superior'],
+          'cocina': ['área de cocinar', 'habitación'],
+          'baño': ['aseo', 'servicio', 'habitación'],
+          'dormitorio': ['cuarto', 'habitación', 'alcoba'],
+          'salón': ['sala', 'habitación'],
+          'jardín': ['patio', 'área verde'],
+          'color': ['tonalidad', 'matiz', 'tinte'],
+          'blanco': ['níveo', 'albo'],
+          'negro': ['oscuro', 'enlutado'],
+          'rojo': ['colorado', 'bermejo'],
+          'azul': ['celeste', 'añil'],
+          'verde': ['verdoso', 'esmeralda'],
+          'amarillo': ['dorado', 'áureo'],
+          'naranja': ['anaranjado'],
+          'rosa': ['rosado'],
+          'gris': ['plomizo', 'ceniciento'],
+          'marrón': ['café', 'pardo'],
+          'número': ['cifra', 'dígito', 'numeral'],
+          'letra': ['carácter', 'signo'],
+          'palabra': ['vocablo', 'término'],
+          'frase': ['oración', 'expresión'],
+          'idioma': ['lengua', 'lenguaje'],
+          'español': ['castellano', 'idioma'],
+          'inglés': ['anglo', 'idioma'],
+          'francés': ['galo', 'idioma'],
+          'alemán': ['tudesco', 'idioma'],
+          'italiano': ['italiano', 'idioma'],
+          'portugués': ['luso', 'idioma'],
+          'chino': ['mandarín', 'idioma'],
+          'japonés': ['nipón', 'idioma']
         };
         
         this.phoneticMap = {
-          // Phonetic similarity patterns for pronunciation
-          'b': ['p', 'v'], 'p': ['b'], 'v': ['b', 'f'],
-          'd': ['t'], 't': ['d'], 'g': ['k'], 'k': ['g'],
-          's': ['z', 'th'], 'z': ['s'], 'th': ['s', 'z'],
-          'r': ['rr'], 'rr': ['r'], 'j': ['y'], 'y': ['j'],
-          'c': ['k', 's'], 'qu': ['k'], 'ch': ['sh']
+          // Enhanced phonetic similarity patterns for pronunciation
+          'b': ['p', 'v'], 'p': ['b'], 'v': ['b', 'f'], 'f': ['v'],
+          'd': ['t'], 't': ['d'], 'g': ['k'], 'k': ['g', 'c'],
+          's': ['z', 'th', 'c'], 'z': ['s'], 'th': ['s', 'z'],
+          'r': ['rr', 'l'], 'rr': ['r'], 'l': ['r'],
+          'j': ['y', 'g'], 'y': ['j', 'i'], 'i': ['y', 'e'],
+          'c': ['k', 's', 'th'], 'qu': ['k', 'c'], 'ch': ['sh', 'tch'],
+          'sh': ['ch'], 'n': ['m'], 'm': ['n'],
+          'w': ['u', 'v'], 'u': ['w', 'o'], 'o': ['u', 'a'],
+          'a': ['o', 'e'], 'e': ['i', 'a'],
+          // Vowel clusters and diphthongs
+          'ai': ['ay', 'ei'], 'ay': ['ai'], 'ei': ['ai', 'ey'],
+          'ou': ['ow'], 'ow': ['ou'], 'oo': ['u'], 'ee': ['i'],
+          // Silent letters and common mispronunciations
+          'h': [''], 'x': ['ks', 'gz'], 'ph': ['f'],
+          // Double consonants
+          'll': ['l'], 'ss': ['s'], 'tt': ['t'], 'nn': ['n'],
+          'mm': ['m'], 'pp': ['p'], 'bb': ['b'], 'dd': ['d']
         };
       }
 
