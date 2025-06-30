@@ -499,6 +499,35 @@
       display: none;
     }
 
+    .error-type-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .error-translation {
+      background: rgba(255, 107, 107, 0.2);
+      color: #ff6b6b;
+      border: 1px solid #ff6b6b;
+    }
+
+    .error-pronunciation {
+      background: rgba(255, 167, 38, 0.2);
+      color: #ffa726;
+      border: 1px solid #ffa726;
+    }
+
+    .error-both {
+      background: rgba(255, 71, 87, 0.2);
+      color: #ff4757;
+      border: 1px solid #ff4757;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -695,6 +724,10 @@
       <button style="background: linear-gradient(45deg, #667eea, #764ba2); min-width: 150px; margin-top: 10px;" id="submitButton">
         ✅ Submit Answer
       </button>
+      <div id="translationFeedback"></div>
+      <button style="background: linear-gradient(45deg, #4ecdc4, #44a08d); min-width: 200px; margin-top: 15px; display: none;" id="continueButton">
+        ➡️ Continuar al siguiente paso
+      </button>
     </div>
 
     <div class="voice-recognition" id="voiceRecognition">
@@ -769,19 +802,23 @@
       <div class="pronunciation-score" id="pronunciationScore">
         <div class="score-item">
           <span class="score-value" id="accuracyScore">0%</span>
-          <span class="score-label">Accuracy</span>
+          <span class="score-label">Precisión</span>
         </div>
         <div class="score-item">
           <span class="score-value" id="clarityScore">0%</span>
-          <span class="score-label">Clarity</span>
+          <span class="score-label">Claridad</span>
+        </div>
+        <div class="score-item">
+          <span class="score-value" id="phoneticScore">0%</span>
+          <span class="score-label">Fonética</span>
         </div>
         <div class="score-item">
           <span class="score-value" id="speedScore">0%</span>
-          <span class="score-label">Speed</span>
+          <span class="score-label">Velocidad</span>
         </div>
         <div class="score-item">
           <span class="score-value" id="overallScore">0%</span>
-          <span class="score-label">Overall</span>
+          <span class="score-label">General</span>
         </div>
       </div>
     </div>
@@ -846,6 +883,11 @@
     let maxPronunciationAttempts = 3;
     let translationCache = {};
 
+    // OpenRouter AI Integration
+    const OPENROUTER_API_KEY = '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';
+    const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+    let aiCache = new Map();
+
     // Enhanced voice recognition variables
     let recognition = null;
     let isRecording = false;
@@ -859,6 +901,7 @@
     let analyser = null;
     let microphone = null;
     let gainNode = null;
+    let timerPaused = false;
 
     // Enhanced translation dictionary
     const translationDictionary = {
@@ -1347,10 +1390,13 @@
     function drawGameplay() {
       if (!currentPhrase) return;
       
-      timeLeft -= 1 / frameRate();
-      if (timeLeft <= 0) {
-        handleTimeout();
-        return;
+      // Solo reduce el tiempo si no está pausado
+      if (!timerPaused) {
+        timeLeft -= 1 / frameRate();
+        if (timeLeft <= 0) {
+          handleTimeout();
+          return;
+        }
       }
       
       updateGameUI();
@@ -1460,6 +1506,9 @@
       // Hide translation input and show voice recognition
       document.getElementById('translationInput').style.display = 'none';
       document.getElementById('voiceRecognition').style.display = 'block';
+      
+      // Make sure microphone is visible at start of pronunciation phase
+      document.getElementById('micButton').style.display = 'block';
       
       // Set up the word to practice
       document.getElementById('pronunciationWord').textContent = currentPhrase.english;
@@ -1574,67 +1623,156 @@
       }
     }
 
-    function processPronunciationResult(spokenText, confidence) {
+    async function processPronunciationResult(spokenText, confidence) {
       const targetWord = currentPhrase.english.toLowerCase();
-      const similarity = calculateEnhancedSimilarity(spokenText, targetWord);
       
       console.log(`🎯 Target: "${targetWord}", Spoken: "${spokenText}"`);
-      console.log(`📊 Enhanced Similarity: ${similarity}%, Confidence: ${(confidence * 100).toFixed(1)}%`);
+      console.log(`📊 Confidence: ${(confidence * 100).toFixed(1)}%`);
       
-      // Enhanced scoring with relaxed thresholds
-      const accuracyScore = similarity;
-      const clarityScore = confidence * 100;
-      const speedScore = calculateSpeedScore();
+      // Hide microphone while validating with AI
+      const micButton = document.getElementById('micButton');
+      micButton.style.display = 'none';
       
-      // Weighted overall score (favor accuracy and clarity)
-      const overallScore = (accuracyScore * 0.5) + (clarityScore * 0.3) + (speedScore * 0.2);
+      // Show processing message
+      showFeedback(`🤖 Analizando pronunciación con IA...`, 'info');
       
-      // Store result
-      pronunciationResults.push({
-        round: currentPronunciationRound,
-        spoken: spokenText,
-        accuracy: accuracyScore,
-        clarity: clarityScore,
-        speed: speedScore,
-        overall: overallScore
-      });
-      
-      // Update round status with relaxed acceptance criteria
-      const roundEl = document.getElementById(`round${currentPronunciationRound}`);
-      const statusEl = document.getElementById(`round${currentPronunciationRound}Status`);
-      
-      if (overallScore >= 50) { // Relaxed from 70% to 50%
-        roundEl.className = 'round-card round-success';
-        statusEl.textContent = `${overallScore.toFixed(0)}% ✅`;
-        showFeedback(`🎉 Great pronunciation! Score: ${overallScore.toFixed(1)}% (Accepted)`, 'success');
-      } else if (overallScore >= 30) { // Relaxed from 40% to 30%
-        roundEl.className = 'round-card round-success';
-        statusEl.textContent = `${overallScore.toFixed(0)}% ⚠️`;
-        showFeedback(`🔄 Good attempt! Score: ${overallScore.toFixed(1)}% (Accepted with tolerance)`, 'info');
-      } else {
-        roundEl.className = 'round-card round-failed';
-        statusEl.textContent = `${overallScore.toFixed(0)}% ❌`;
-        showFeedback(`🎯 Keep practicing! Score: ${overallScore.toFixed(1)}%. Try speaking more clearly.`, 'error');
-      }
-      
-      // Update scores display
-      updatePronunciationScores(accuracyScore, clarityScore, speedScore, overallScore);
-      
-      // Move to next round or finish - ALL 3 ROUNDS ARE MANDATORY
-      if (currentPronunciationRound < 3) {
-        setTimeout(() => {
-          currentPronunciationRound++;
-          setActiveRound(currentPronunciationRound);
-          showFeedback(`🎤 Round ${currentPronunciationRound}: Click microphone to continue`, 'info');
-        }, 2500);
-      } else {
-        // All 3 rounds completed
-        setTimeout(() => {
-          showFeedback(`🎊 All 3 pronunciation rounds completed! Moving to next word...`, 'success');
+      try {
+        // Use AI for detailed pronunciation analysis
+        const aiAnalysis = await analyzePronunciationWithAI(targetWord, spokenText, confidence * 100);
+        
+        let accuracyScore, clarityScore, phoneticScore, overallScore, detailedFeedback;
+        
+        if (aiAnalysis) {
+          // Use AI analysis
+          accuracyScore = aiAnalysis.accuracy;
+          clarityScore = aiAnalysis.clarity;
+          phoneticScore = aiAnalysis.phoneticMatch;
+          overallScore = aiAnalysis.overallScore;
+          detailedFeedback = aiAnalysis.feedback;
+        } else {
+          // Fallback to original method
+          const similarity = calculateEnhancedSimilarity(spokenText, targetWord);
+          accuracyScore = similarity;
+          clarityScore = confidence * 100;
+          phoneticScore = similarity;
+          overallScore = (accuracyScore * 0.4) + (clarityScore * 0.3) + (phoneticScore * 0.3);
+          detailedFeedback = `Análisis básico: similitud ${similarity.toFixed(1)}%`;
+        }
+        
+        const speedScore = calculateSpeedScore();
+        
+        // Store result with AI analysis
+        pronunciationResults.push({
+          round: currentPronunciationRound,
+          spoken: spokenText,
+          accuracy: accuracyScore,
+          clarity: clarityScore,
+          phonetic: phoneticScore,
+          speed: speedScore,
+          overall: overallScore,
+          aiAnalysis: aiAnalysis,
+          detailedFeedback: detailedFeedback
+        });
+        
+        // Update round status
+        const roundEl = document.getElementById(`round${currentPronunciationRound}`);
+        const statusEl = document.getElementById(`round${currentPronunciationRound}Status`);
+        
+        let feedbackMessage = '';
+        let feedbackType = '';
+        
+        if (overallScore >= 80) {
+          roundEl.className = 'round-card round-success';
+          statusEl.textContent = `${overallScore.toFixed(0)}% 🌟`;
+          feedbackMessage = `🌟 ¡Excelente pronunciación! Puntuación: ${overallScore.toFixed(1)}%`;
+          feedbackType = 'success';
+        } else if (overallScore >= 65) {
+          roundEl.className = 'round-card round-success';
+          statusEl.textContent = `${overallScore.toFixed(0)}% ✅`;
+          feedbackMessage = `✅ ¡Muy buena pronunciación! Puntuación: ${overallScore.toFixed(1)}%`;
+          feedbackType = 'success';
+        } else if (overallScore >= 50) {
+          roundEl.className = 'round-card round-success';
+          statusEl.textContent = `${overallScore.toFixed(0)}% ⚠️`;
+          feedbackMessage = `⚠️ Buena pronunciación. Puntuación: ${overallScore.toFixed(1)}%`;
+          feedbackType = 'info';
+        } else if (overallScore >= 30) {
+          roundEl.className = 'round-card round-failed';
+          statusEl.textContent = `${overallScore.toFixed(0)}% 🔄`;
+          feedbackMessage = `🔄 Necesita mejorar. Puntuación: ${overallScore.toFixed(1)}%`;
+          feedbackType = 'error';
+        } else {
+          roundEl.className = 'round-card round-failed';
+          statusEl.textContent = `${overallScore.toFixed(0)}% ❌`;
+          feedbackMessage = `❌ Pronunciación muy diferente. Puntuación: ${overallScore.toFixed(1)}%`;
+          feedbackType = 'error';
+        }
+        
+        // Show detailed feedback
+        if (aiAnalysis && aiAnalysis.feedback) {
+          feedbackMessage += `<br><br><strong>Análisis detallado:</strong> ${aiAnalysis.feedback}`;
+          if (aiAnalysis.tips) {
+            feedbackMessage += `<br><br><strong>💡 Consejo:</strong> ${aiAnalysis.tips}`;
+          }
+        }
+        
+        showFeedback(feedbackMessage, feedbackType);
+        
+        // Update scores display with more detail
+        updateDetailedPronunciationScores(accuracyScore, clarityScore, phoneticScore, speedScore, overallScore);
+        
+        // Move to next round or finish
+        console.log(`🔄 Pronunciation round ${currentPronunciationRound} completed. Moving to next step...`);
+        if (currentPronunciationRound < 3) {
+          console.log(`⏭️ Moving to round ${currentPronunciationRound + 1} of 3`);
+          // Show microphone again for next round
+          document.getElementById('micButton').style.display = 'block';
+          setTimeout(() => {
+            currentPronunciationRound++;
+            setActiveRound(currentPronunciationRound);
+            showFeedback(`🎤 Ronda ${currentPronunciationRound} de 3: Haz clic en el micrófono para continuar`, 'info');
+          }, 4000); // Más tiempo para leer el feedback
+        } else {
+          // All 3 rounds completed - call finish directly
+          console.log('🎊 All 3 rounds completed, calling finishPronunciationPhase');
+          // Hide microphone since we're finishing
+          document.getElementById('micButton').style.display = 'none';
           setTimeout(() => {
             finishPronunciationPhase();
-          }, 1500);
-        }, 2000);
+          }, 3000);
+        }
+        
+      } catch (error) {
+        console.error('Error in pronunciation analysis:', error);
+        // Fallback to basic analysis
+        const similarity = calculateEnhancedSimilarity(spokenText, targetWord);
+        const basicScore = (similarity + confidence * 100) / 2;
+        
+        pronunciationResults.push({
+          round: currentPronunciationRound,
+          spoken: spokenText,
+          accuracy: similarity,
+          clarity: confidence * 100,
+          phonetic: similarity,
+          speed: calculateSpeedScore(),
+          overall: basicScore
+        });
+        
+        showFeedback(`🔍 Puntuación básica: ${basicScore.toFixed(1)}%`, 'info');
+        
+        console.log(`🔄 Error handling: Round ${currentPronunciationRound} completed. Moving to next step...`);
+        if (currentPronunciationRound < 3) {
+          console.log(`⏭️ Error path: Moving to round ${currentPronunciationRound + 1} of 3`);
+          // Show microphone again for next round
+          document.getElementById('micButton').style.display = 'block';
+          currentPronunciationRound++;
+          setActiveRound(currentPronunciationRound);
+        } else {
+          console.log('🎊 Error path: All 3 rounds completed, calling finishPronunciationPhase');
+          // Hide microphone since we're finishing
+          document.getElementById('micButton').style.display = 'none';
+          finishPronunciationPhase();
+        }
       }
     }
 
@@ -1679,6 +1817,19 @@
       }
     }
 
+    function updateDetailedPronunciationScores(accuracy, clarity, phonetic, speed, overall) {
+      document.getElementById('accuracyScore').textContent = `${accuracy.toFixed(1)}%`;
+      document.getElementById('clarityScore').textContent = `${clarity.toFixed(1)}%`;
+      document.getElementById('speedScore').textContent = `${speed.toFixed(1)}%`;
+      document.getElementById('overallScore').textContent = `${overall.toFixed(1)}%`;
+      
+      // Add phonetic score if element exists
+      const phoneticEl = document.getElementById('phoneticScore');
+      if (phoneticEl) {
+        phoneticEl.textContent = `${phonetic.toFixed(1)}%`;
+      }
+    }
+
     function updatePronunciationScores(accuracy, clarity, speed, overall) {
       document.getElementById('accuracyScore').textContent = `${accuracy.toFixed(0)}%`;
       document.getElementById('clarityScore').textContent = `${clarity.toFixed(0)}%`;
@@ -1693,16 +1844,84 @@
       const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
       totalPronunciationScore += avgScore;
       
+      // Determine if pronunciation passed (60% threshold)
+      const pronunciationPassed = avgScore >= 60;
+      const translationPassed = window.currentWordTranslationCorrect;
+      
+      // EVALUACIÓN FINAL: Ambos deben estar correctos para contar como respuesta correcta
+      const bothCorrect = translationPassed && pronunciationPassed;
+      
+      if (bothCorrect) {
+        // Solo ahora incrementar score y correctAnswers
+        score += Math.max(10, Math.floor(timeLeft * 2));
+        correctAnswers++;
+        console.log('✅ Both translation and pronunciation correct - counted as success');
+      } else {
+        // Cualquier fallo cuenta como incorrecto
+        incorrectTranslations++;
+        console.log('❌ Either translation or pronunciation failed - counted as error');
+        
+        // Determine error type and create comprehensive error entry
+        let errorEntry;
+        
+        if (window.currentTranslationError) {
+          // Translation was wrong, update with pronunciation results
+          errorEntry = { ...window.currentTranslationError };
+          errorEntry.pronunciationError = !pronunciationPassed;
+          errorEntry.pronunciationScore = Math.round(avgScore);
+        } else {
+          // Translation was correct but pronunciation failed
+          errorEntry = {
+            word: currentPhrase.english,
+            expected: currentPhrase.spanish.join(' / '),
+            userInput: '(traducción correcta)',
+            pronunciation: currentPhrase.pronunciation,
+            phonetic: currentPhrase.phonetic,
+            translationError: false,
+            pronunciationError: true,
+            pronunciationScore: Math.round(avgScore)
+          };
+        }
+        
+        // Add detailed pronunciation data
+        errorEntry.pronunciationData = {
+          averageScore: Math.round(avgScore),
+          detailedResults: pronunciationResults,
+          aiAnalysis: pronunciationResults.filter(r => r.aiAnalysis).map(r => r.aiAnalysis),
+          rounds: pronunciationResults.length
+        };
+        
+        errors.push(errorEntry);
+      }
+      
+      // Clean up temporary data
+      window.currentTranslationError = null;
+      
       // Hide voice recognition interface
       document.getElementById('voiceRecognition').style.display = 'none';
+      // Also hide microphone button
+      document.getElementById('micButton').style.display = 'none';
       
-      // Show results summary
-      showFeedback(`🎯 Pronunciation complete! Average score: ${avgScore.toFixed(1)}%`, 'success');
+      // Show comprehensive results summary
+      const bestRound = Math.max(...pronunciationResults.map(r => r.overall));
+      const worstRound = Math.min(...pronunciationResults.map(r => r.overall));
+      
+      let resultMessage = `🎯 Evaluación completa:<br>`;
+      resultMessage += `📝 Traducción: ${translationPassed ? '✅ Correcta' : '❌ Incorrecta'}<br>`;
+      resultMessage += `🔊 Pronunciación: ${pronunciationPassed ? '✅ Correcta' : '❌ Incorrecta'} (${avgScore.toFixed(1)}%)<br>`;
+      resultMessage += `🏆 Resultado final: ${bothCorrect ? '✅ CORRECTO' : '❌ INCORRECTO'}<br><br>`;
+      resultMessage += `📊 Detalle pronunciación:<br>`;
+      resultMessage += `• Promedio: ${avgScore.toFixed(1)}%<br>`;
+      resultMessage += `• Mejor ronda: ${bestRound.toFixed(1)}%<br>`;
+      resultMessage += `• Rango: ${worstRound.toFixed(1)}% - ${bestRound.toFixed(1)}%`;
+      
+      const feedbackType = bothCorrect ? 'success' : 'error';
+      showFeedback(resultMessage, feedbackType);
       
       // Continue to next round
       setTimeout(() => {
         nextRound();
-      }, 2000);
+      }, 4000); // Más tiempo para leer el resultado completo
     }
 
     function updateMicButton() {
@@ -1740,7 +1959,233 @@
       }
     }
 
-    // File handling functions
+    function showTranslationFeedback(message, type) {
+      // Use the existing feedback element
+      const feedbackEl = document.getElementById('translationFeedback');
+      feedbackEl.innerHTML = `<div class="voice-feedback feedback-${type}" style="margin: 10px 0;">${message}</div>`;
+      
+      // Don't auto-clear error messages to allow reading
+      if (type === 'success' || type === 'info') {
+        setTimeout(() => {
+          if (feedbackEl.innerHTML.includes(message)) {
+            feedbackEl.innerHTML = '';
+          }
+        }, 4000);
+      }
+    }
+
+    // AI Translation Validation Functions
+    async function validateTranslationWithAI(englishWord, userTranslation) {
+      const cacheKey = `${englishWord}_${userTranslation}`;
+      
+      if (aiCache.has(cacheKey)) {
+        console.log('🧠 Using cached AI validation result');
+        return aiCache.get(cacheKey);
+      }
+
+      try {
+        console.log(`🤖 Validating with AI: "${englishWord}" -> "${userTranslation}"`);
+        
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Translate Blitz Pro'
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-3.3-70b-instruct',
+            messages: [
+              {
+                role: 'system',
+                content: 'Eres un experto en traducción inglés-español. Evalúa si la traducción proporcionada es correcta, considerando sinónimos, variaciones regionales y diferentes formas de expresar la misma idea. Responde SOLO con un JSON en este formato: {"correct": true/false, "explanation": "explicación en español", "alternatives": ["alternativa1", "alternativa2"]}. No agregues texto adicional.'
+              },
+              {
+                role: 'user',
+                content: `¿Es correcta esta traducción?
+Palabra en inglés: "${englishWord}"
+Traducción del usuario: "${userTranslation}"
+
+Evalúa si la traducción es correcta considerando sinónimos y variaciones.`
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 200
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content.trim();
+        
+        // Parse AI response
+        let result;
+        try {
+          result = JSON.parse(aiResponse);
+        } catch (parseError) {
+          console.warn('Failed to parse AI response, using fallback');
+          result = {
+            correct: false,
+            explanation: 'Error al procesar respuesta de la IA',
+            alternatives: []
+          };
+        }
+
+        // Cache the result
+        aiCache.set(cacheKey, result);
+        
+        console.log('🧠 AI validation result:', result);
+        return result;
+
+      } catch (error) {
+        console.error('❌ AI validation error:', error);
+        // Fallback to dictionary check
+        return {
+          correct: translationDictionary[englishWord]?.includes(userTranslation.toLowerCase()) || false,
+          explanation: 'Validación por diccionario (IA no disponible)',
+          alternatives: translationDictionary[englishWord] || []
+        };
+      }
+    }
+
+    async function analyzePronunciationWithAI(targetWord, spokenText, confidence) {
+      try {
+        console.log(`🤖 Analyzing pronunciation with AI: "${targetWord}" vs "${spokenText}"`);
+        
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Translate Blitz Pro'
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-3.3-70b-instruct',
+            messages: [
+              {
+                role: 'system',
+                content: 'Eres un experto en fonética y pronunciación del inglés. Analiza la pronunciación comparando lo que se intentó decir vs lo que se detectó. Proporciona un análisis detallado con puntuación específica. Responde SOLO con un JSON: {"accuracy": 0-100, "clarity": 0-100, "phoneticMatch": 0-100, "overallScore": 0-100, "feedback": "explicación detallada", "tips": "consejos específicos", "strongPoints": "aspectos bien pronunciados", "improvementAreas": "áreas a mejorar"}'
+              },
+              {
+                role: 'user',
+                content: `Analiza esta pronunciación:
+
+Palabra objetivo: "${targetWord}"
+Pronunciación detectada: "${spokenText}"
+Confianza del reconocimiento: ${confidence}%
+
+Evalúa:
+1. Precisión fonética (qué tan cerca estuvo del sonido correcto)
+2. Claridad (qué tan clara fue la pronunciación)
+3. Coincidencia fonética general
+4. Puntuación global
+
+Proporciona feedback constructivo y consejos específicos para mejorar.`
+              }
+            ],
+            temperature: 0.2,
+            max_tokens: 400
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content.trim();
+        
+        try {
+          const result = JSON.parse(aiResponse);
+          console.log('🧠 AI pronunciation analysis:', result);
+          return result;
+        } catch (parseError) {
+          console.warn('Failed to parse AI pronunciation response');
+          return null;
+        }
+
+      } catch (error) {
+        console.error('❌ AI pronunciation analysis error:', error);
+        return null;
+      }
+    }
+
+    async function generateErrorExplanations(errors) {
+      if (errors.length === 0) return [];
+
+      try {
+        console.log('🤖 Generating error explanations with AI...');
+        
+        const errorsData = errors.map(error => ({
+          word: error.word,
+          expected: error.expected,
+          userInput: error.userInput,
+          translationError: error.translationError,
+          pronunciationError: error.pronunciationError,
+          pronunciationScore: error.pronunciationScore
+        }));
+
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'Translate Blitz Pro'
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-3.3-70b-instruct',
+            messages: [
+              {
+                role: 'system',
+                content: 'Eres un tutor de idiomas experto. Analiza los errores de traducción y pronunciación de estudiantes de inglés-español. Para cada error, proporciona una explicación educativa y consejos para mejorar. Responde SOLO con un JSON array donde cada elemento tenga: {"word": "palabra", "explanation": "explicación detallada en español", "tips": "consejos para mejorar"}.'
+              },
+              {
+                role: 'user',
+                content: `Analiza estos errores de aprendizaje y proporciona explicaciones educativas:
+
+${JSON.stringify(errorsData, null, 2)}
+
+Para cada error, explica:
+1. Por qué la respuesta fue incorrecta (si aplica)
+2. Las diferencias entre la respuesta del usuario y la correcta
+3. Consejos para recordar la traducción correcta
+4. Si hubo problemas de pronunciación, consejos específicos
+
+Sé constructivo y educativo.`
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content.trim();
+        
+        try {
+          const explanations = JSON.parse(aiResponse);
+          console.log('🧠 AI explanations generated:', explanations.length);
+          return explanations;
+        } catch (parseError) {
+          console.warn('Failed to parse AI explanations');
+          return [];
+        }
+
+      } catch (error) {
+        console.error('❌ AI explanation error:', error);
+        return [];
+      }
+    }
     async function handleFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -2036,65 +2481,194 @@
     }
 
     function selectNewPhrase() {
+      console.log('🔄 selectNewPhrase() called - resetting variables for new question');
       if (currentPhraseIndex < currentRoundWords.length) {
         currentPhrase = currentRoundWords[currentPhraseIndex];
+        console.log(`📝 New phrase selected: "${currentPhrase.english}" -> "${currentPhrase.spanish.join(' / ')}"`);
+        
+        // Reset translation status for new word
+        window.currentWordTranslationCorrect = false;
+        window.currentTranslationError = null;
+        // Reset timer state
+        timerPaused = false;
+        // Reset pronunciation variables for new word
+        currentPronunciationRound = 1;
+        pronunciationResults = [];
+        console.log('🔄 Pronunciation variables reset: currentPronunciationRound=1, pronunciationResults=[]');
+        
+        // Hide continue button
+        document.getElementById('continueButton').style.display = 'none';
+        // Clear feedback
+        document.getElementById('translationFeedback').innerHTML = '';
+        // Hide voice recognition interface in case it was visible
+        document.getElementById('voiceRecognition').style.display = 'none';
       } else {
+        console.log('❌ No more phrases available - setting currentPhrase to null');
         currentPhrase = null;
       }
     }
 
-    function submit() {
+    async function submit() {
       if (gameState !== 'playing') return;
       if (!currentPhrase) return;
       
       const input = normalizeText(document.getElementById('inputTranslation').value);
-      const correctAnswers_local = currentPhrase.spanish;
-      const isCorrect = correctAnswers_local.includes(input);
       
-      if (isCorrect) {
-        score += Math.max(10, Math.floor(timeLeft * 2));
-        correctAnswers++;
-        showCorrectFeedback();
-      } else {
-        incorrectTranslations++;
-        errors.push({
-          word: currentPhrase.english,
-          expected: currentPhrase.spanish.join(' / '),
-          userInput: input,
-          pronunciation: currentPhrase.pronunciation,
-          phonetic: currentPhrase.phonetic
-        });
-        showIncorrectFeedback();
+      // Pausar el timer durante la validación
+      timerPaused = true;
+      
+      // Show loading state
+      const submitButton = document.getElementById('submitButton');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = '🤖 Validando...';
+      submitButton.disabled = true;
+      
+      // Hide continue button initially
+      document.getElementById('continueButton').style.display = 'none';
+      
+      try {
+        // Use AI validation
+        const aiResult = await validateTranslationWithAI(currentPhrase.english, input);
+        const isCorrect = aiResult.correct;
+        
+        if (isCorrect) {
+          // NO incrementar score ni correctAnswers aquí - esperar a pronunciación
+          showCorrectFeedback();
+          
+          // Mark that translation was correct for this word
+          window.currentWordTranslationCorrect = true;
+          
+          // Show AI feedback for correct answer
+          if (aiResult.alternatives && aiResult.alternatives.length > 0) {
+            showTranslationFeedback(`✅ ¡Correcto! Otras traducciones válidas: ${aiResult.alternatives.join(', ')}<br><br>🎤 Ahora procederemos con la pronunciación para evaluación completa.`, 'success');
+          } else {
+            showTranslationFeedback(`✅ ¡Excelente! Tu traducción es correcta.<br><br>🎤 Ahora procederemos con la pronunciación para evaluación completa.`, 'success');
+          }
+        } else {
+          // NO incrementar incorrectTranslations aquí - esperar a pronunciación
+          window.currentWordTranslationCorrect = false;
+          
+          // Temporal storage for translation error
+          window.currentTranslationError = {
+            word: currentPhrase.english,
+            expected: currentPhrase.spanish.join(' / '),
+            userInput: input,
+            pronunciation: currentPhrase.pronunciation,
+            phonetic: currentPhrase.phonetic,
+            translationError: true,
+            pronunciationError: false,
+            pronunciationScore: null,
+            aiExplanation: aiResult.explanation,
+            aiAlternatives: aiResult.alternatives || []
+          };
+          
+          showIncorrectFeedback();
+          
+          // Show AI explanation
+          showTranslationFeedback(`❌ ${aiResult.explanation}<br><br>🎤 Aún así, procederemos con la pronunciación para evaluación completa.`, 'error');
+        }
+        
+        document.getElementById('inputTranslation').value = '';
+        
+        // Show continue button
+        document.getElementById('continueButton').style.display = 'block';
+        
+      } catch (error) {
+        console.error('Error during validation:', error);
+        // Fallback to original logic
+        const correctAnswers_local = currentPhrase.spanish;
+        const isCorrect = correctAnswers_local.includes(input);
+        
+        if (isCorrect) {
+          // NO incrementar score aquí - esperar a pronunciación
+          showCorrectFeedback();
+          window.currentWordTranslationCorrect = true;
+          showTranslationFeedback(`✅ ¡Correcto!<br><br>🎤 Ahora procederemos con la pronunciación.`, 'success');
+        } else {
+          // NO incrementar incorrectTranslations aquí - esperar a pronunciación
+          window.currentWordTranslationCorrect = false;
+          
+          // Temporal storage for translation error
+          window.currentTranslationError = {
+            word: currentPhrase.english,
+            expected: currentPhrase.spanish.join(' / '),
+            userInput: input,
+            pronunciation: currentPhrase.pronunciation,
+            phonetic: currentPhrase.phonetic,
+            translationError: true,
+            pronunciationError: false,
+            pronunciationScore: null
+          };
+          
+          showIncorrectFeedback();
+          showTranslationFeedback(`❌ Respuesta incorrecta. La traducción correcta es: ${currentPhrase.spanish.join(' / ')}<br><br>🎤 Aún así, procederemos con la pronunciación.`, 'error');
+        }
+        
+        document.getElementById('inputTranslation').value = '';
+        document.getElementById('continueButton').style.display = 'block';
+      } finally {
+        // Restore button state
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
       }
+    }
+
+    function continueToNextStep() {
+      // Ocultar botón de continuar
+      document.getElementById('continueButton').style.display = 'none';
       
-      document.getElementById('inputTranslation').value = '';
+      // Limpiar feedback
+      document.getElementById('translationFeedback').innerHTML = '';
       
-      // Start enhanced voice recognition phase
+      // Reanudar el timer
+      timerPaused = false;
+      
+      // Continuar al siguiente paso (pronunciación)
       startVoiceRecognitionPhase();
     }
 
     function handleTimeout() {
-      incorrectTranslations++;
+      // Solo procesar timeout si el timer no está pausado
+      if (timerPaused) return;
+      
+      // NO incrementar incorrectTranslations aquí - esperar a pronunciación
+      window.currentWordTranslationCorrect = false;
+      
       if (currentPhrase) {
-        errors.push({
+        // Temporal storage for timeout error
+        window.currentTranslationError = {
           word: currentPhrase.english,
           expected: currentPhrase.spanish.join(' / '),
           userInput: '(timeout)',
           pronunciation: currentPhrase.pronunciation,
-          phonetic: currentPhrase.phonetic
-        });
+          phonetic: currentPhrase.phonetic,
+          translationError: true,
+          pronunciationError: false,
+          pronunciationScore: null,
+          aiExplanation: 'Se agotó el tiempo para responder',
+          aiAlternatives: currentPhrase.spanish || []
+        };
       }
+      
       showTimeoutFeedback();
-      startVoiceRecognitionPhase();
+      showTranslationFeedback(`⏱️ Se agotó el tiempo. La respuesta correcta era: ${currentPhrase.spanish.join(' / ')}<br><br>🎤 Aún así, procederemos con la pronunciación.`, 'error');
+      
+      // Show continue button for timeout too
+      document.getElementById('continueButton').style.display = 'block';
     }
 
     function nextRound() {
+      console.log('🚀 nextRound() called - advancing to next question');
       round++;
       currentPhraseIndex++;
       
+      console.log(`📊 Game state: round=${round}, currentPhraseIndex=${currentPhraseIndex}, roundSize=${roundSize}, totalWords=${currentRoundWords.length}`);
+      
       if (round >= roundSize || currentPhraseIndex >= currentRoundWords.length) {
+        console.log('🏁 Game finished - calling finishGame()');
         finishGame();
       } else {
+        console.log('➡️ Selecting new phrase and continuing game');
         selectNewPhrase();
         resetTimer();
         
@@ -2115,7 +2689,7 @@
       }
     }
 
-    function showErrorReview() {
+    async function showErrorReview() {
       gameState = 'errorReview';
       
       document.getElementById('gameInfo').style.display = 'none';
@@ -2124,30 +2698,191 @@
       document.getElementById('errorsReview').style.display = 'block';
       
       const errorsList = document.getElementById('errorsList');
-      errorsList.innerHTML = '';
+      errorsList.innerHTML = '<div style="text-align: center; color: #ffa726; margin: 20px 0;">🤖 Generando explicaciones inteligentes...</div>';
       
-      errors.forEach((error, index) => {
-        const errorItem = document.createElement('div');
-        errorItem.style.cssText = `
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-          padding: 15px;
-          margin: 10px 0;
-          text-align: left;
-        `;
-        errorItem.innerHTML = `
-          <div style="color: #ffd700; font-size: 1.2rem; font-weight: 600; margin-bottom: 8px;">
-            ${index + 1}. "${error.word}"
-          </div>
-          <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.4;">
-            <div>✅ <span style="color: #4ecdc4; font-weight: 500;">Correct: ${error.expected}</span></div>
-            <div>❌ <span style="color: #ff6b6b; font-weight: 500;">Your answer: ${error.userInput}</span></div>
-            <div>🔊 <span style="color: #4ecdc4; font-weight: 500;">Pronunciation: ${error.phonetic}</span></div>
+      if (errors.length === 0) {
+        errorsList.innerHTML = `
+          <div style="text-align: center; color: #4ecdc4; font-size: 1.2rem; padding: 20px;">
+            🎉 ¡Perfecto! No hubo errores en esta ronda.
           </div>
         `;
-        errorsList.appendChild(errorItem);
-      });
+        return;
+      }
+      
+      try {
+        // Generate AI explanations
+        const aiExplanations = await generateErrorExplanations(errors);
+        
+        errorsList.innerHTML = '';
+        
+        errors.forEach((error, index) => {
+          const errorItem = document.createElement('div');
+          errorItem.style.cssText = `
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: left;
+          `;
+          
+          // Determinar tipo de error y clase CSS
+          let errorBadgeClass = '';
+          let errorTypeText = '';
+          if (error.translationError && error.pronunciationError) {
+            errorBadgeClass = 'error-both';
+            errorTypeText = '🚫 Error en Traducción y Pronunciación';
+          } else if (error.translationError) {
+            errorBadgeClass = 'error-translation';
+            errorTypeText = '📝 Error en Traducción (Pronunciación correcta)';
+          } else if (error.pronunciationError) {
+            errorBadgeClass = 'error-pronunciation';
+            errorTypeText = '🔊 Error en Pronunciación (Traducción correcta)';
+          }
+          
+          // Add overall result indicator
+          let overallResult = '';
+          if (error.translationError || error.pronunciationError) {
+            overallResult = `
+              <div style="background: rgba(255, 71, 87, 0.2); border: 1px solid #ff4757; border-radius: 8px; padding: 8px; margin: 8px 0; text-align: center;">
+                <span style="color: #ff4757; font-weight: 700; font-size: 1rem;">❌ RESPUESTA INCORRECTA</span><br>
+                <span style="color: rgba(255, 255, 255, 0.8); font-size: 0.85rem;">
+                  ${error.translationError && error.pronunciationError ? 'Ambas partes fallaron' : 
+                    error.translationError ? 'Falló por traducción incorrecta' : 'Falló por pronunciación incorrecta'}
+                </span>
+              </div>
+            `;
+          }
+          
+          let errorContent = `
+            <div style="color: #ffd700; font-size: 1.2rem; font-weight: 600; margin-bottom: 8px;">
+              ${index + 1}. "${error.word}"
+            </div>
+            ${overallResult}
+            <div class="error-type-badge ${errorBadgeClass}">
+              ${errorTypeText}
+            </div>
+            <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.4;">
+          `;
+          
+          // Solo mostrar información de traducción si hubo error de traducción
+          if (error.translationError) {
+            errorContent += `
+              <div style="margin: 5px 0;">✅ <span style="color: #4ecdc4; font-weight: 500;">Traducción correcta: ${error.expected}</span></div>
+              <div style="margin: 5px 0;">❌ <span style="color: #ff6b6b; font-weight: 500;">Tu respuesta: ${error.userInput}</span></div>
+            `;
+            
+            // Show AI alternatives if available
+            if (error.aiAlternatives && error.aiAlternatives.length > 0) {
+              errorContent += `
+                <div style="margin: 5px 0;">💡 <span style="color: #ffa726; font-weight: 500;">Otras traducciones válidas: ${error.aiAlternatives.join(', ')}</span></div>
+              `;
+            }
+          }
+          
+          // Siempre mostrar la pronunciación correcta
+          errorContent += `
+            <div style="margin: 5px 0;">🔊 <span style="color: #4ecdc4; font-weight: 500;">Pronunciación: ${error.phonetic}</span></div>
+          `;
+          
+          // Mostrar puntuación de pronunciación si la hubo
+          if (error.pronunciationScore !== undefined && error.pronunciationScore !== null) {
+            const scoreColor = error.pronunciationScore >= 70 ? '#4ecdc4' : error.pronunciationScore >= 50 ? '#ffa726' : '#ff6b6b';
+            errorContent += `
+              <div style="margin: 5px 0;">🎯 <span style="color: ${scoreColor}; font-weight: 500;">Puntuación de pronunciación: ${error.pronunciationScore}%</span></div>
+            `;
+            
+            // Show detailed pronunciation analysis if available
+            if (error.pronunciationData && error.pronunciationData.detailedResults) {
+              errorContent += `
+                <div style="margin: 10px 0; padding: 10px; background: rgba(255, 167, 38, 0.1); border-radius: 8px; border-left: 3px solid #ffa726;">
+                  <div style="color: #ffa726; font-weight: 600; margin-bottom: 5px;">📊 Análisis detallado de pronunciación:</div>
+                  <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.85rem;">
+                    • Promedio de ${error.pronunciationData.rounds} rondas: ${error.pronunciationData.averageScore}%<br>
+              `;
+              
+              // Show individual round scores
+              error.pronunciationData.detailedResults.forEach((result, idx) => {
+                errorContent += `• Ronda ${idx + 1}: ${result.overall.toFixed(1)}% (Precisión: ${result.accuracy.toFixed(1)}%, Claridad: ${result.clarity.toFixed(1)}%)<br>`;
+              });
+              
+              // Show AI analysis if available
+              if (error.pronunciationData.aiAnalysis && error.pronunciationData.aiAnalysis.length > 0) {
+                const bestAnalysis = error.pronunciationData.aiAnalysis[error.pronunciationData.aiAnalysis.length - 1];
+                if (bestAnalysis.feedback) {
+                  errorContent += `<br><strong>🤖 Análisis de IA:</strong> ${bestAnalysis.feedback}`;
+                }
+                if (bestAnalysis.tips) {
+                  errorContent += `<br><strong>💡 Consejo:</strong> ${bestAnalysis.tips}`;
+                }
+                if (bestAnalysis.strongPoints) {
+                  errorContent += `<br><strong>✅ Puntos fuertes:</strong> ${bestAnalysis.strongPoints}`;
+                }
+                if (bestAnalysis.improvementAreas) {
+                  errorContent += `<br><strong>📈 Áreas de mejora:</strong> ${bestAnalysis.improvementAreas}`;
+                }
+              }
+              
+              errorContent += `
+                  </div>
+                </div>
+              `;
+            }
+          }
+          
+          // Add AI explanation
+          const aiExplanation = aiExplanations.find(exp => exp.word === error.word);
+          if (aiExplanation) {
+            errorContent += `
+              <div style="margin: 10px 0; padding: 10px; background: rgba(78, 205, 196, 0.1); border-radius: 8px; border-left: 3px solid #4ecdc4;">
+                <div style="color: #4ecdc4; font-weight: 600; margin-bottom: 5px;">🤖 Explicación de la IA:</div>
+                <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.9rem;">${aiExplanation.explanation}</div>
+                ${aiExplanation.tips ? `<div style="color: #ffa726; margin-top: 5px; font-size: 0.9rem;">💡 <strong>Consejo:</strong> ${aiExplanation.tips}</div>` : ''}
+              </div>
+            `;
+          } else if (error.aiExplanation) {
+            errorContent += `
+              <div style="margin: 10px 0; padding: 10px; background: rgba(78, 205, 196, 0.1); border-radius: 8px; border-left: 3px solid #4ecdc4;">
+                <div style="color: #4ecdc4; font-weight: 600; margin-bottom: 5px;">🤖 Explicación:</div>
+                <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.9rem;">${error.aiExplanation}</div>
+              </div>
+            `;
+          }
+          
+          errorContent += '</div>';
+          errorItem.innerHTML = errorContent;
+          errorsList.appendChild(errorItem);
+        });
+        
+      } catch (error) {
+        console.error('Error generating AI explanations:', error);
+        // Fallback to basic error display
+        errorsList.innerHTML = '';
+        
+        errors.forEach((error, index) => {
+          const errorItem = document.createElement('div');
+          errorItem.style.cssText = `
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: left;
+          `;
+          
+          errorItem.innerHTML = `
+            <div style="color: #ffd700; font-size: 1.2rem; font-weight: 600; margin-bottom: 8px;">
+              ${index + 1}. "${error.word}"
+            </div>
+            <div style="color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; line-height: 1.4;">
+              <div>✅ <span style="color: #4ecdc4; font-weight: 500;">Correcto: ${error.expected}</span></div>
+              <div>❌ <span style="color: #ff6b6b; font-weight: 500;">Tu respuesta: ${error.userInput}</span></div>
+              <div>🔊 <span style="color: #4ecdc4; font-weight: 500;">Pronunciación: ${error.phonetic}</span></div>
+            </div>
+          `;
+          errorsList.appendChild(errorItem);
+        });
+      }
     }
 
     function startRetryRound() {
@@ -2177,6 +2912,7 @@
 
     function resetTimer() {
       timeLeft = difficultyTimes[document.getElementById('typeSelect').value];
+      timerPaused = false; // Asegurar que el timer no esté pausado
       document.getElementById('inputTranslation').focus();
     }
 
@@ -2227,6 +2963,7 @@
     // Event listeners
     document.getElementById('startButton').addEventListener('click', startPlaying);
     document.getElementById('submitButton').addEventListener('click', submit);
+    document.getElementById('continueButton').addEventListener('click', continueToNextStep);
     document.getElementById('micButton').addEventListener('click', startRecording);
     document.getElementById('playPronunciation').addEventListener('click', () => playPronunciation(1.0));
     document.getElementById('playSlowPronunciation').addEventListener('click', playSlowPronunciation);
