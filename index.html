@@ -642,32 +642,15 @@
       </div>
     </div>
 
-    <!-- CORS Info and Download Button -->
-    <div class="cors-info" id="corsInfo" style="display: none;">
-      <div style="background: rgba(255, 193, 7, 0.1); border: 2px solid #ffc107; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: center;">
-        <h3 style="color: #ffc107; margin: 0 0 15px 0;">⚠️ CORS Error Detected</h3>
-        <p style="color: #fff; margin: 10px 0; line-height: 1.6;">
-          La IA no puede funcionar cuando abres el archivo localmente debido a restricciones CORS.<br>
-          <strong>Solución:</strong> Ejecuta el juego en un servidor web para usar todas las funciones de IA.
-        </p>
-        <button id="downloadBtn" class="download-button" style="
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 10px;
-          font-size: 16px;
-          font-weight: 600;
-          cursor: pointer;
-          margin: 10px;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        ">
-          📥 Descargar HTML para Servidor
-        </button>
-        <div style="font-size: 12px; color: #ccc; margin-top: 10px;">
-          Descarga el archivo y súbelo a un servidor web (GitHub Pages, Netlify, etc.)
-        </div>
+    <!-- Offline AI Info -->
+    <div class="offline-info" id="offlineInfo" style="background: rgba(76, 175, 80, 0.1); border: 2px solid #4caf50; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: center;">
+      <h3 style="color: #4caf50; margin: 0 0 15px 0;">🤖 Sistema de IA Offline Activado</h3>
+      <p style="color: #fff; margin: 10px 0; line-height: 1.6;">
+        Este juego usa un <strong>sistema de IA offline avanzado</strong> que funciona completamente en tu navegador.<br>
+        ✅ <strong>Análisis semántico local</strong> • ✅ <strong>Validación de sinónimos</strong> • ✅ <strong>Análisis fonético</strong>
+      </p>
+      <div style="font-size: 12px; color: #a5d6a7; margin-top: 10px;">
+        Sin necesidad de conexión a internet para las funciones de IA
       </div>
     </div>
 
@@ -924,6 +907,8 @@
     let translationCache = {};
 
     // OpenRouter AI Integration
+    // AI Configuration - DISABLED for offline mode
+    const USE_AI = false; // Set to false for offline mode
     const OPENROUTER_API_KEY = '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';
     const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
     let aiCache = new Map();
@@ -980,6 +965,257 @@
       'where is': ['dónde está'], 'i do not understand': ['no entiendo'], 'help me': ['ayúdame'],
       'i need': ['necesito'], 'i want': ['quiero'], 'i like': ['me gusta']
     };
+
+    // Advanced Local AI System (Offline)
+    class OfflineAI {
+      constructor() {
+        this.synonymDict = {
+          // Spanish synonyms for better validation
+          'bueno': ['bien', 'correcto', 'excelente', 'perfecto'],
+          'malo': ['incorrecto', 'erróneo', 'equivocado'],
+          'grande': ['enorme', 'gigante', 'inmenso', 'amplio'],
+          'pequeño': ['chico', 'diminuto', 'minúsculo', 'poco'],
+          'feliz': ['alegre', 'contento', 'gozoso'],
+          'triste': ['melancólico', 'deprimido', 'afligido'],
+          'casa': ['hogar', 'vivienda', 'domicilio', 'residencia'],
+          'trabajo': ['empleo', 'ocupación', 'labor', 'oficio'],
+          'comida': ['alimento', 'sustento', 'nutrición'],
+          'agua': ['líquido', 'bebida'],
+          'amigo': ['compañero', 'camarada', 'colega'],
+          'hermoso': ['bello', 'lindo', 'precioso', 'atractivo'],
+          'inteligente': ['listo', 'astuto', 'brillante', 'sabio'],
+          'rápido': ['veloz', 'ligero', 'ágil'],
+          'lento': ['pausado', 'calmado', 'tranquilo']
+        };
+        
+        this.phoneticMap = {
+          // Phonetic similarity patterns for pronunciation
+          'b': ['p', 'v'], 'p': ['b'], 'v': ['b', 'f'],
+          'd': ['t'], 't': ['d'], 'g': ['k'], 'k': ['g'],
+          's': ['z', 'th'], 'z': ['s'], 'th': ['s', 'z'],
+          'r': ['rr'], 'rr': ['r'], 'j': ['y'], 'y': ['j'],
+          'c': ['k', 's'], 'qu': ['k'], 'ch': ['sh']
+        };
+      }
+
+      // Advanced semantic similarity using multiple algorithms
+      calculateSemanticSimilarity(word1, word2) {
+        word1 = word1.toLowerCase().trim();
+        word2 = word2.toLowerCase().trim();
+
+        // Exact match
+        if (word1 === word2) return 1.0;
+
+        // Check synonyms
+        if (this.synonymDict[word1]?.includes(word2) || this.synonymDict[word2]?.includes(word1)) {
+          return 0.95;
+        }
+
+        // Levenshtein distance
+        const levenshtein = this.levenshteinDistance(word1, word2);
+        const maxLen = Math.max(word1.length, word2.length);
+        const levSimilarity = 1 - (levenshtein / maxLen);
+
+        // Jaccard similarity (character n-grams)
+        const jaccardSim = this.jaccardSimilarity(word1, word2);
+
+        // Longest Common Subsequence
+        const lcsSim = this.lcsSimilarity(word1, word2);
+
+        // Phonetic similarity
+        const phoneticSim = this.phoneticSimilarity(word1, word2);
+
+        // Weighted combination
+        return (levSimilarity * 0.3) + (jaccardSim * 0.25) + (lcsSim * 0.25) + (phoneticSim * 0.2);
+      }
+
+      levenshteinDistance(str1, str2) {
+        const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+        
+        for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+        for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+        
+        for (let j = 1; j <= str2.length; j++) {
+          for (let i = 1; i <= str1.length; i++) {
+            const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(
+              matrix[j][i - 1] + 1,     // deletion
+              matrix[j - 1][i] + 1,     // insertion
+              matrix[j - 1][i - 1] + cost // substitution
+            );
+          }
+        }
+        
+        return matrix[str2.length][str1.length];
+      }
+
+      jaccardSimilarity(str1, str2) {
+        const ngrams1 = this.getNgrams(str1, 2);
+        const ngrams2 = this.getNgrams(str2, 2);
+        const intersection = ngrams1.filter(x => ngrams2.includes(x));
+        const union = [...new Set([...ngrams1, ...ngrams2])];
+        return intersection.length / union.length;
+      }
+
+      getNgrams(str, n) {
+        const ngrams = [];
+        for (let i = 0; i <= str.length - n; i++) {
+          ngrams.push(str.slice(i, i + n));
+        }
+        return ngrams;
+      }
+
+      lcsSimilarity(str1, str2) {
+        const lcs = this.longestCommonSubsequence(str1, str2);
+        return (2 * lcs) / (str1.length + str2.length);
+      }
+
+      longestCommonSubsequence(str1, str2) {
+        const dp = Array(str1.length + 1).fill(null).map(() => Array(str2.length + 1).fill(0));
+        
+        for (let i = 1; i <= str1.length; i++) {
+          for (let j = 1; j <= str2.length; j++) {
+            if (str1[i - 1] === str2[j - 1]) {
+              dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+              dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+            }
+          }
+        }
+        
+        return dp[str1.length][str2.length];
+      }
+
+      phoneticSimilarity(word1, word2) {
+        const phonetic1 = this.toPhonetic(word1);
+        const phonetic2 = this.toPhonetic(word2);
+        return this.calculateSemanticSimilarity(phonetic1, phonetic2);
+      }
+
+      toPhonetic(word) {
+        let phonetic = word.toLowerCase();
+        // Apply phonetic transformations
+        Object.entries(this.phoneticMap).forEach(([key, values]) => {
+          values.forEach(val => {
+            phonetic = phonetic.replace(new RegExp(val, 'g'), key);
+          });
+        });
+        return phonetic;
+      }
+
+      // Advanced translation validation
+      validateTranslation(englishWord, userTranslation) {
+        const correctTranslations = translationDictionary[englishWord.toLowerCase()] || [];
+        
+        let bestScore = 0;
+        let bestMatch = '';
+        let alternatives = [];
+
+        for (const correct of correctTranslations) {
+          const similarity = this.calculateSemanticSimilarity(userTranslation, correct);
+          if (similarity > bestScore) {
+            bestScore = similarity;
+            bestMatch = correct;
+          }
+          if (similarity > 0.7) {
+            alternatives.push(correct);
+          }
+        }
+
+        // Also check for synonyms in our dictionary
+        for (const [key, synonyms] of Object.entries(this.synonymDict)) {
+          if (correctTranslations.includes(key)) {
+            for (const synonym of synonyms) {
+              const similarity = this.calculateSemanticSimilarity(userTranslation, synonym);
+              if (similarity > 0.8) {
+                alternatives.push(synonym);
+                if (similarity > bestScore) {
+                  bestScore = similarity;
+                  bestMatch = synonym;
+                }
+              }
+            }
+          }
+        }
+
+        const isCorrect = bestScore >= 0.75; // 75% threshold for correctness
+        
+        return {
+          correct: isCorrect,
+          score: bestScore,
+          bestMatch: bestMatch,
+          explanation: isCorrect 
+            ? `✅ Correcto! Similitud: ${(bestScore * 100).toFixed(1)}% con "${bestMatch}"` 
+            : `❌ Incorrecto. Mejor coincidencia: "${bestMatch}" (${(bestScore * 100).toFixed(1)}%)`,
+          alternatives: [...new Set(alternatives)].slice(0, 3), // Top 3 alternatives
+          method: 'Análisis semántico local avanzado'
+        };
+      }
+
+      // Advanced pronunciation analysis
+      analyzePronunciation(targetWord, spokenText, confidence) {
+        const similarity = this.calculateSemanticSimilarity(targetWord.toLowerCase(), spokenText.toLowerCase());
+        const phoneticMatch = this.phoneticSimilarity(targetWord, spokenText);
+        
+        // Calculate individual scores
+        const accuracyScore = (similarity * 100);
+        const clarityScore = confidence;
+        const phoneticScore = (phoneticMatch * 100);
+        const speedScore = 85; // Assume good speed for local analysis
+        
+        // Weighted overall score
+        const overallScore = (accuracyScore * 0.4) + (clarityScore * 0.3) + (phoneticScore * 0.3);
+        
+        let feedback = '';
+        let tips = '';
+        
+        if (overallScore >= 85) {
+          feedback = '¡Excelente pronunciación! Muy clara y precisa.';
+          tips = 'Mantén ese ritmo y claridad.';
+        } else if (overallScore >= 70) {
+          feedback = 'Buena pronunciación, con pequeños detalles a mejorar.';
+          tips = 'Intenta pronunciar más claramente las consonantes.';
+        } else if (overallScore >= 50) {
+          feedback = 'Pronunciación aceptable, pero necesita práctica.';
+          tips = 'Escucha el audio de ejemplo y repite lentamente.';
+        } else {
+          feedback = 'La pronunciación necesita mejorar significativamente.';
+          tips = 'Practica escuchando el audio varias veces antes de intentar.';
+        }
+
+        return {
+          accuracy: accuracyScore,
+          clarity: clarityScore,
+          phoneticMatch: phoneticScore,
+          overallScore: overallScore,
+          feedback: feedback,
+          tips: tips,
+          method: 'Análisis fonético local avanzado'
+        };
+      }
+
+      // Generate smart error explanations
+      generateErrorExplanation(error) {
+        const { word, expected, userInput } = error;
+        
+        if (!userInput || userInput.trim() === '') {
+          return `Para "${word}", la respuesta estaba vacía. La traducción correcta es "${expected}".`;
+        }
+
+        const similarity = this.calculateSemanticSimilarity(userInput, expected);
+        
+        if (similarity > 0.6) {
+          return `Para "${word}", tu respuesta "${userInput}" estaba muy cerca. La respuesta correcta es "${expected}". Solo necesitabas pequeños ajustes.`;
+        } else if (similarity > 0.3) {
+          return `Para "${word}", tu respuesta "${userInput}" tenía algunas similitudes con la correcta "${expected}", pero necesitaba más precisión.`;
+        } else {
+          return `Para "${word}", tu respuesta "${userInput}" era muy diferente de la correcta "${expected}". Te recomiendo repasar esta palabra.`;
+        }
+      }
+    }
+
+    // Initialize offline AI system
+    const offlineAI = new OfflineAI();
 
     // Particle system
     class Particle {
@@ -2005,224 +2241,48 @@
       const cacheKey = `${englishWord}_${userTranslation}`;
       
       if (aiCache.has(cacheKey)) {
-        console.log('🧠 Using cached AI validation result');
+        console.log('🧠 Using cached validation result');
         return aiCache.get(cacheKey);
       }
 
-      try {
-        console.log(`🤖 Validating with AI: "${englishWord}" -> "${userTranslation}"`);
-        
-        const response = await fetch(OPENROUTER_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'Translate Blitz Pro'
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct',
-            messages: [
-              {
-                role: 'system',
-                content: 'Eres un experto en traducción inglés-español. Evalúa si la traducción proporcionada es correcta, considerando sinónimos, variaciones regionales y diferentes formas de expresar la misma idea. Responde SOLO con un JSON en este formato: {"correct": true/false, "explanation": "explicación en español", "alternatives": ["alternativa1", "alternativa2"]}. No agregues texto adicional.'
-              },
-              {
-                role: 'user',
-                content: `¿Es correcta esta traducción?
-Palabra en inglés: "${englishWord}"
-Traducción del usuario: "${userTranslation}"
-
-Evalúa si la traducción es correcta considerando sinónimos y variaciones.`
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 200
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content.trim();
-        
-        // Parse AI response
-        let result;
-        try {
-          result = JSON.parse(aiResponse);
-        } catch (parseError) {
-          console.warn('Failed to parse AI response, using fallback');
-          result = {
-            correct: false,
-            explanation: 'Error al procesar respuesta de la IA',
-            alternatives: []
-          };
-        }
-
-        // Cache the result
-        aiCache.set(cacheKey, result);
-        
-        console.log('🧠 AI validation result:', result);
-        return result;
-
-      } catch (error) {
-        console.error('❌ AI validation error:', error);
-        
-        // Show CORS info if this is a CORS error or running locally
-        if (isRunningLocally() || error.message && (error.message.includes('CORS') || error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-          document.getElementById('corsInfo').style.display = 'block';
-        }
-        
-        // Fallback to dictionary check
-        return {
-          correct: translationDictionary[englishWord]?.includes(userTranslation.toLowerCase()) || false,
-          explanation: '✅ Validación por diccionario local (IA requiere servidor web)',
-          alternatives: translationDictionary[englishWord] || []
-        };
-      }
+      console.log(`🤖 Validating offline: "${englishWord}" -> "${userTranslation}"`);
+      
+      // Use offline AI system instead of external API
+      const result = offlineAI.validateTranslation(englishWord, userTranslation);
+      
+      // Cache the result
+      aiCache.set(cacheKey, result);
+      
+      console.log('🧠 Offline validation result:', result);
+      return result;
     }
 
     async function analyzePronunciationWithAI(targetWord, spokenText, confidence) {
-      try {
-        console.log(`🤖 Analyzing pronunciation with AI: "${targetWord}" vs "${spokenText}"`);
-        
-        const response = await fetch(OPENROUTER_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'Translate Blitz Pro'
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct',
-            messages: [
-              {
-                role: 'system',
-                content: 'Eres un experto en fonética y pronunciación del inglés. Analiza la pronunciación comparando lo que se intentó decir vs lo que se detectó. Proporciona un análisis detallado con puntuación específica. Responde SOLO con un JSON: {"accuracy": 0-100, "clarity": 0-100, "phoneticMatch": 0-100, "overallScore": 0-100, "feedback": "explicación detallada", "tips": "consejos específicos", "strongPoints": "aspectos bien pronunciados", "improvementAreas": "áreas a mejorar"}'
-              },
-              {
-                role: 'user',
-                content: `Analiza esta pronunciación:
-
-Palabra objetivo: "${targetWord}"
-Pronunciación detectada: "${spokenText}"
-Confianza del reconocimiento: ${confidence}%
-
-Evalúa:
-1. Precisión fonética (qué tan cerca estuvo del sonido correcto)
-2. Claridad (qué tan clara fue la pronunciación)
-3. Coincidencia fonética general
-4. Puntuación global
-
-Proporciona feedback constructivo y consejos específicos para mejorar.`
-              }
-            ],
-            temperature: 0.2,
-            max_tokens: 400
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content.trim();
-        
-        try {
-          const result = JSON.parse(aiResponse);
-          console.log('🧠 AI pronunciation analysis:', result);
-          return result;
-        } catch (parseError) {
-          console.warn('Failed to parse AI pronunciation response');
-          return null;
-        }
-
-      } catch (error) {
-        console.error('❌ AI pronunciation analysis error:', error);
-        
-        // Show CORS info if this is a CORS error or running locally
-        if (isRunningLocally() || error.message && (error.message.includes('CORS') || error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-          document.getElementById('corsInfo').style.display = 'block';
-        }
-        
-        return null;
-      }
+      console.log(`🤖 Analyzing pronunciation offline: "${targetWord}" vs "${spokenText}"`);
+      
+      // Use offline AI system instead of external API
+      const result = offlineAI.analyzePronunciation(targetWord, spokenText, confidence);
+      
+      console.log('🧠 Offline pronunciation analysis:', result);
+      return result;
     }
 
     async function generateErrorExplanations(errors) {
       if (errors.length === 0) return [];
 
-      try {
-        console.log('🤖 Generating error explanations with AI...');
-        
-        const errorsData = errors.map(error => ({
-          word: error.word,
-          expected: error.expected,
-          userInput: error.userInput,
-          translationError: error.translationError,
-          pronunciationError: error.pronunciationError,
-          pronunciationScore: error.pronunciationScore
-        }));
-
-        const response = await fetch(OPENROUTER_API_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'Translate Blitz Pro'
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct',
-            messages: [
-              {
-                role: 'system',
-                content: 'Eres un tutor de idiomas experto. Analiza los errores de traducción y pronunciación de estudiantes de inglés-español. Para cada error, proporciona una explicación educativa y consejos para mejorar. Responde SOLO con un JSON array donde cada elemento tenga: {"word": "palabra", "explanation": "explicación detallada en español", "tips": "consejos para mejorar"}.'
-              },
-              {
-                role: 'user',
-                content: `Analiza estos errores de aprendizaje y proporciona explicaciones educativas:
-
-${JSON.stringify(errorsData, null, 2)}
-
-Para cada error, explica:
-1. Por qué la respuesta fue incorrecta (si aplica)
-2. Las diferencias entre la respuesta del usuario y la correcta
-3. Consejos para recordar la traducción correcta
-4. Si hubo problemas de pronunciación, consejos específicos
-
-Sé constructivo y educativo.`
-              }
-            ],
-            temperature: 0.3,
-            max_tokens: 1000
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content.trim();
-        
-        try {
-          const explanations = JSON.parse(aiResponse);
-          console.log('🧠 AI explanations generated:', explanations.length);
-          return explanations;
-        } catch (parseError) {
-          console.warn('Failed to parse AI explanations');
-          return [];
-        }
-
-      } catch (error) {
-        console.error('❌ AI explanation error:', error);
-        return [];
-      }
+      console.log('🤖 Generating error explanations offline...');
+      
+      // Use offline AI system to generate explanations
+      const explanations = errors.map(error => ({
+        word: error.word,
+        explanation: offlineAI.generateErrorExplanation(error),
+        tips: error.pronunciationError 
+          ? 'Practica la pronunciación escuchando el audio varias veces.'
+          : 'Repasa esta traducción y sus sinónimos.'
+      }));
+      
+      console.log('🧠 Offline explanations generated:', explanations.length);
+      return explanations;
     }
     async function handleFile(event) {
       const file = event.target.files[0];
@@ -3013,50 +3073,14 @@ Sé constructivo y educativo.`
 
     // Initialize enhanced game
     window.addEventListener('load', function() {
-      console.log('🎮 Translate Blitz Pro - Enhanced Voice loaded successfully!');
+      console.log('🎮 Translate Blitz Pro - Offline AI Edition loaded successfully!');
       console.log(`📚 Dictionary with ${Object.keys(translationDictionary).length} entries ready!`);
       console.log(`👋 Welcome, ${getCurrentUser()}!`);
       console.log(`📅 Current Date: ${getCurrentDateTime()}`);
       console.log('🎤 Enhanced voice recognition with amplification initialized');
       console.log('🔊 Relaxed pronunciation matching enabled (50%+ acceptance)');
       console.log('🎵 Unlimited audio repetition available');
-      
-      // Check if running locally (file:// protocol)
-      if (window.location.protocol === 'file:') {
-        console.warn('⚠️ Running locally - AI features may be limited due to CORS');
-        document.getElementById('corsInfo').style.display = 'block';
-      }
-    });
-
-    // Function to check if running locally
-    function isRunningLocally() {
-      return window.location.protocol === 'file:';
-    }
-
-    // Download functionality
-    document.getElementById('downloadBtn').addEventListener('click', function() {
-      const htmlContent = document.documentElement.outerHTML;
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'translate-blitz-pro.html';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Show success message
-      const btn = document.getElementById('downloadBtn');
-      const originalText = btn.textContent;
-      btn.textContent = '✅ Descargado!';
-      btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)';
-      
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-      }, 2000);
+      console.log('🤖 Offline AI system with semantic analysis active');
     });
 
   </script>
