@@ -565,6 +565,17 @@
       margin-right: 10px;
     }
 
+    .download-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+
+    .download-button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
     @media (max-width: 768px) {
       .game-title {
         font-size: 2rem;
@@ -628,6 +639,35 @@
           <option value="half">Half Collection</option>
           <option value="all">All Words</option>
         </select>
+      </div>
+    </div>
+
+    <!-- CORS Info and Download Button -->
+    <div class="cors-info" id="corsInfo" style="display: none;">
+      <div style="background: rgba(255, 193, 7, 0.1); border: 2px solid #ffc107; border-radius: 15px; padding: 20px; margin: 20px 0; text-align: center;">
+        <h3 style="color: #ffc107; margin: 0 0 15px 0;">⚠️ CORS Error Detected</h3>
+        <p style="color: #fff; margin: 10px 0; line-height: 1.6;">
+          La IA no puede funcionar cuando abres el archivo localmente debido a restricciones CORS.<br>
+          <strong>Solución:</strong> Ejecuta el juego en un servidor web para usar todas las funciones de IA.
+        </p>
+        <button id="downloadBtn" class="download-button" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 10px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          margin: 10px;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        ">
+          📥 Descargar HTML para Servidor
+        </button>
+        <div style="font-size: 12px; color: #ccc; margin-top: 10px;">
+          Descarga el archivo y súbelo a un servidor web (GitHub Pages, Netlify, etc.)
+        </div>
       </div>
     </div>
 
@@ -1507,9 +1547,6 @@
       document.getElementById('translationInput').style.display = 'none';
       document.getElementById('voiceRecognition').style.display = 'block';
       
-      // Make sure microphone is visible at start of pronunciation phase
-      document.getElementById('micButton').style.display = 'block';
-      
       // Set up the word to practice
       document.getElementById('pronunciationWord').textContent = currentPhrase.english;
       document.getElementById('phoneticDisplay').textContent = currentPhrase.phonetic;
@@ -1629,10 +1666,6 @@
       console.log(`🎯 Target: "${targetWord}", Spoken: "${spokenText}"`);
       console.log(`📊 Confidence: ${(confidence * 100).toFixed(1)}%`);
       
-      // Hide microphone while validating with AI
-      const micButton = document.getElementById('micButton');
-      micButton.style.display = 'none';
-      
       // Show processing message
       showFeedback(`🤖 Analizando pronunciación con IA...`, 'info');
       
@@ -1722,11 +1755,7 @@
         updateDetailedPronunciationScores(accuracyScore, clarityScore, phoneticScore, speedScore, overallScore);
         
         // Move to next round or finish
-        console.log(`🔄 Pronunciation round ${currentPronunciationRound} completed. Moving to next step...`);
         if (currentPronunciationRound < 3) {
-          console.log(`⏭️ Moving to round ${currentPronunciationRound + 1} of 3`);
-          // Show microphone again for next round
-          document.getElementById('micButton').style.display = 'block';
           setTimeout(() => {
             currentPronunciationRound++;
             setActiveRound(currentPronunciationRound);
@@ -1735,8 +1764,6 @@
         } else {
           // All 3 rounds completed - call finish directly
           console.log('🎊 All 3 rounds completed, calling finishPronunciationPhase');
-          // Hide microphone since we're finishing
-          document.getElementById('micButton').style.display = 'none';
           setTimeout(() => {
             finishPronunciationPhase();
           }, 3000);
@@ -1760,17 +1787,10 @@
         
         showFeedback(`🔍 Puntuación básica: ${basicScore.toFixed(1)}%`, 'info');
         
-        console.log(`🔄 Error handling: Round ${currentPronunciationRound} completed. Moving to next step...`);
         if (currentPronunciationRound < 3) {
-          console.log(`⏭️ Error path: Moving to round ${currentPronunciationRound + 1} of 3`);
-          // Show microphone again for next round
-          document.getElementById('micButton').style.display = 'block';
           currentPronunciationRound++;
           setActiveRound(currentPronunciationRound);
         } else {
-          console.log('🎊 Error path: All 3 rounds completed, calling finishPronunciationPhase');
-          // Hide microphone since we're finishing
-          document.getElementById('micButton').style.display = 'none';
           finishPronunciationPhase();
         }
       }
@@ -1844,6 +1864,13 @@
       const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
       totalPronunciationScore += avgScore;
       
+    function finishPronunciationPhase() {
+      console.log('🏁 Finishing enhanced pronunciation phase');
+      
+      // Calculate average pronunciation score for this word
+      const avgScore = pronunciationResults.reduce((sum, result) => sum + result.overall, 0) / pronunciationResults.length;
+      totalPronunciationScore += avgScore;
+      
       // Determine if pronunciation passed (60% threshold)
       const pronunciationPassed = avgScore >= 60;
       const translationPassed = window.currentWordTranslationCorrect;
@@ -1899,8 +1926,6 @@
       
       // Hide voice recognition interface
       document.getElementById('voiceRecognition').style.display = 'none';
-      // Also hide microphone button
-      document.getElementById('micButton').style.display = 'none';
       
       // Show comprehensive results summary
       const bestRound = Math.max(...pronunciationResults.map(r => r.overall));
@@ -1922,6 +1947,7 @@
       setTimeout(() => {
         nextRound();
       }, 4000); // Más tiempo para leer el resultado completo
+    }
     }
 
     function updateMicButton() {
@@ -2043,10 +2069,16 @@ Evalúa si la traducción es correcta considerando sinónimos y variaciones.`
 
       } catch (error) {
         console.error('❌ AI validation error:', error);
+        
+        // Show CORS info if this is a CORS error or running locally
+        if (isRunningLocally() || error.message && (error.message.includes('CORS') || error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+          document.getElementById('corsInfo').style.display = 'block';
+        }
+        
         // Fallback to dictionary check
         return {
           correct: translationDictionary[englishWord]?.includes(userTranslation.toLowerCase()) || false,
-          explanation: 'Validación por diccionario (IA no disponible)',
+          explanation: '✅ Validación por diccionario local (IA requiere servidor web)',
           alternatives: translationDictionary[englishWord] || []
         };
       }
@@ -2111,6 +2143,12 @@ Proporciona feedback constructivo y consejos específicos para mejorar.`
 
       } catch (error) {
         console.error('❌ AI pronunciation analysis error:', error);
+        
+        // Show CORS info if this is a CORS error or running locally
+        if (isRunningLocally() || error.message && (error.message.includes('CORS') || error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+          document.getElementById('corsInfo').style.display = 'block';
+        }
+        
         return null;
       }
     }
@@ -2481,29 +2519,18 @@ Sé constructivo y educativo.`
     }
 
     function selectNewPhrase() {
-      console.log('🔄 selectNewPhrase() called - resetting variables for new question');
       if (currentPhraseIndex < currentRoundWords.length) {
         currentPhrase = currentRoundWords[currentPhraseIndex];
-        console.log(`📝 New phrase selected: "${currentPhrase.english}" -> "${currentPhrase.spanish.join(' / ')}"`);
-        
         // Reset translation status for new word
         window.currentWordTranslationCorrect = false;
         window.currentTranslationError = null;
         // Reset timer state
         timerPaused = false;
-        // Reset pronunciation variables for new word
-        currentPronunciationRound = 1;
-        pronunciationResults = [];
-        console.log('🔄 Pronunciation variables reset: currentPronunciationRound=1, pronunciationResults=[]');
-        
         // Hide continue button
         document.getElementById('continueButton').style.display = 'none';
         // Clear feedback
         document.getElementById('translationFeedback').innerHTML = '';
-        // Hide voice recognition interface in case it was visible
-        document.getElementById('voiceRecognition').style.display = 'none';
       } else {
-        console.log('❌ No more phrases available - setting currentPhrase to null');
         currentPhrase = null;
       }
     }
@@ -2658,17 +2685,12 @@ Sé constructivo y educativo.`
     }
 
     function nextRound() {
-      console.log('🚀 nextRound() called - advancing to next question');
       round++;
       currentPhraseIndex++;
       
-      console.log(`📊 Game state: round=${round}, currentPhraseIndex=${currentPhraseIndex}, roundSize=${roundSize}, totalWords=${currentRoundWords.length}`);
-      
       if (round >= roundSize || currentPhraseIndex >= currentRoundWords.length) {
-        console.log('🏁 Game finished - calling finishGame()');
         finishGame();
       } else {
-        console.log('➡️ Selecting new phrase and continuing game');
         selectNewPhrase();
         resetTimer();
         
@@ -2998,7 +3020,45 @@ Sé constructivo y educativo.`
       console.log('🎤 Enhanced voice recognition with amplification initialized');
       console.log('🔊 Relaxed pronunciation matching enabled (50%+ acceptance)');
       console.log('🎵 Unlimited audio repetition available');
+      
+      // Check if running locally (file:// protocol)
+      if (window.location.protocol === 'file:') {
+        console.warn('⚠️ Running locally - AI features may be limited due to CORS');
+        document.getElementById('corsInfo').style.display = 'block';
+      }
     });
+
+    // Function to check if running locally
+    function isRunningLocally() {
+      return window.location.protocol === 'file:';
+    }
+
+    // Download functionality
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      const htmlContent = document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'translate-blitz-pro.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Show success message
+      const btn = document.getElementById('downloadBtn');
+      const originalText = btn.textContent;
+      btn.textContent = '✅ Descargado!';
+      btn.style.background = 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)';
+      
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      }, 2000);
+    });
+
   </script>
 </body>
 </html>
