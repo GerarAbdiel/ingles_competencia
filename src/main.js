@@ -18,16 +18,7 @@ const CONFIG = {
     echoCancellation: true,
     noiseSuppression: true,
     autoGainControl: true
-  },
-  // Development mode - detect if running locally
-  IS_LOCAL_DEV: window.location.hostname === 'localhost' || 
-               window.location.hostname === '127.0.0.1' ||
-               window.location.protocol === 'file:',
-  
-  // Store original local dev state (never changes during runtime)
-  IS_ORIGINALLY_LOCAL: window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1' ||
-                      window.location.protocol === 'file:'
+  }
 }
 
 // Default vocabulary
@@ -163,15 +154,6 @@ class AIService {
       return game.aiCache.get(cacheKey)
     }
 
-    // Use mock responses for local development
-    if (CONFIG.IS_LOCAL_DEV) {
-      console.log('🔧 Using mock translation validation for local development')
-      await new Promise(resolve => setTimeout(resolve, 500)) // Simulate delay
-      const result = this.getMockTranslationResponse(englishWord, userTranslation)
-      game.aiCache.set(cacheKey, result)
-      return result
-    }
-
     const prompt = `You are a Spanish teacher. Is "${userTranslation}" a correct Spanish translation of "${englishWord}"?
 
 Consider: exact matches, synonyms, regional variations (Mexican/Spanish/Argentine), with/without articles.
@@ -186,8 +168,8 @@ Respond with ONLY this JSON format:
 
 Evaluate: "${englishWord}" → "${userTranslation}"`
 
-    console.log('🧠 Validating translation with AI...')
-    // NO FALLBACK - Only AI validation
+    console.log('🧠 Validating translation with OpenRouter AI...')
+    // ALWAYS use OpenRouter - no fallback to local
     const result = await this.callOpenRouter(prompt)
     game.aiCache.set(cacheKey, result)
     return result
@@ -199,15 +181,6 @@ Evaluate: "${englishWord}" → "${userTranslation}"`
     if (game.aiCache.has(cacheKey)) {
       console.log('📋 Using cached pronunciation result')
       return game.aiCache.get(cacheKey)
-    }
-
-    // Use mock responses for local development
-    if (CONFIG.IS_LOCAL_DEV) {
-      console.log('🔧 Using mock pronunciation analysis for local development')
-      await new Promise(resolve => setTimeout(resolve, 800)) // Simulate delay
-      const result = this.getMockPronunciationResponse(targetWord, spokenText, confidence)
-      game.aiCache.set(cacheKey, result)
-      return result
     }
 
     const prompt = `You are an English pronunciation coach. Analyze pronunciation of "${targetWord}".
@@ -229,32 +202,19 @@ Respond with ONLY this JSON:
 
 Score 0-100: 90+=excellent, 80+=good, 70+=adequate, 60+=poor, <60=very poor`
 
-    console.log('🗣️ Analyzing pronunciation with AI...')
-    // NO FALLBACK - Only AI analysis
+    console.log('🗣️ Analyzing pronunciation with OpenRouter AI...')
+    // ALWAYS use OpenRouter - no fallback to local
     const result = await this.callOpenRouter(prompt)
     game.aiCache.set(cacheKey, result)
     return result
   }
 
   static async callOpenRouter(prompt) {
-    console.log('🌐 Calling AI API with smart fallback...')
+    console.log('🌐 Calling OpenRouter API (ONLY - no fallback)...')
     console.log('📝 Prompt length:', prompt.length)
     console.log('🏠 Running from:', window.location.origin)
     
-    // Try OpenRouter first
-    try {
-      console.log('🚀 Attempting OpenRouter API...')
-      return await this.tryOpenRouter(prompt)
-    } catch (error) {
-      console.log('❌ OpenRouter failed:', error.message)
-      console.log('🔄 Using intelligent local fallback...')
-      
-      // Use intelligent local fallback
-      return this.getIntelligentLocalResponse(prompt)
-    }
-  }
-
-  static async tryOpenRouter(prompt) {
+    // ONLY try OpenRouter - no fallback
     const controller = new AbortController()
     const timeoutId = setTimeout(() => {
       console.log('⏰ OpenRouter request timeout after 30 seconds')
@@ -311,268 +271,13 @@ Score 0-100: 90+=excellent, 80+=good, 70+=adequate, 60+=poor, <60=very poor`
       }
     } catch (error) {
       clearTimeout(timeoutId)
-      throw error
-    }
-  }
-
-  static getIntelligentLocalResponse(prompt) {
-    console.log('🧠 Using intelligent local AI fallback')
-    
-    // Extract translation validation request
-    const evaluateMatch = prompt.match(/Evaluate: "([^"]+)" → "([^"]+)"/)
-    if (evaluateMatch) {
-      const [, englishWord, spanishTranslation] = evaluateMatch
-      return this.validateTranslationLocally(englishWord, spanishTranslation)
-    }
-    
-    // Extract pronunciation analysis request
-    if (prompt.includes('pronunciation') || prompt.includes('spoken text')) {
-      // Extract parameters from prompt
-      const targetWordMatch = prompt.match(/pronunciation of "([^"]+)"/)
-      const spokenTextMatch = prompt.match(/Student said: "([^"]+)"/)
-      const confidenceMatch = prompt.match(/confidence: (\d+)%/)
-      
-      const targetWord = targetWordMatch ? targetWordMatch[1] : 'unknown'
-      const spokenText = spokenTextMatch ? spokenTextMatch[1] : 'unknown'
-      const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 80
-      
-      return this.analyzePronunciationLocally(targetWord, spokenText, confidence)
-    }
-    
-    // Generic fallback
-    return this.getGenericMockResponse()
-  }
-
-  static validateTranslationLocally(englishWord, spanishTranslation) {
-    // Comprehensive translation dictionary
-    const translations = {
-      'house': ['casa', 'hogar', 'vivienda'],
-      'car': ['coche', 'auto', 'automóvil', 'carro'],
-      'book': ['libro'],
-      'water': ['agua'],
-      'food': ['comida', 'alimento'],
-      'family': ['familia'],
-      'friend': ['amigo', 'amiga'],
-      'work': ['trabajo', 'obra'],
-      'school': ['escuela', 'colegio'],
-      'time': ['tiempo', 'hora'],
-      'day': ['día'],
-      'night': ['noche'],
-      'morning': ['mañana'],
-      'afternoon': ['tarde'],
-      'evening': ['noche', 'tarde'],
-      'week': ['semana'],
-      'month': ['mes'],
-      'year': ['año'],
-      'today': ['hoy'],
-      'tomorrow': ['mañana'],
-      'yesterday': ['ayer'],
-      'love': ['amor'],
-      'happy': ['feliz', 'contento', 'alegre'],
-      'sad': ['triste'],
-      'angry': ['enojado', 'furioso'],
-      'beautiful': ['hermoso', 'hermosa', 'bello', 'bella', 'bonito', 'bonita'],
-      'good': ['bueno', 'buena', 'bien'],
-      'bad': ['malo', 'mala', 'mal'],
-      'big': ['grande', 'gran'],
-      'small': ['pequeño', 'pequeña', 'chico', 'chica'],
-      'hot': ['caliente', 'caluroso'],
-      'cold': ['frío', 'fría'],
-      'new': ['nuevo', 'nueva'],
-      'old': ['viejo', 'vieja', 'antiguo', 'antigua'],
-      'fast': ['rápido', 'rápida', 'veloz'],
-      'slow': ['lento', 'lenta', 'despacio'],
-      'easy': ['fácil'],
-      'difficult': ['difícil', 'complicado'],
-      'important': ['importante'],
-      'interesting': ['interesante']
-    }
-    
-    const userAnswer = spanishTranslation.toLowerCase().trim()
-    const validTranslations = translations[englishWord.toLowerCase()] || []
-    
-    // Check for direct matches and common article variations
-    const isCorrect = validTranslations.some(valid => 
-      userAnswer === valid || 
-      userAnswer === `el ${valid}` || 
-      userAnswer === `la ${valid}` ||
-      userAnswer === `un ${valid}` ||
-      userAnswer === `una ${valid}` ||
-      userAnswer === `los ${valid}` ||
-      userAnswer === `las ${valid}`
-    )
-    
-    return {
-      correct: isCorrect,
-      explanation: isCorrect ? 
-        "¡Correcto! Tu traducción es válida." : 
-        `No es correcto. Traducciones válidas: ${validTranslations.join(', ')}`,
-      alternatives: validTranslations.slice(0, 3),
-      tips: isCorrect ? 
-        "¡Excelente trabajo! Continúa así." : 
-        "Recuerda las variaciones regionales y el uso de artículos."
-    }
-  }
-
-  static analyzePronunciationLocally(targetWord, spokenText, confidence) {
-    console.log('🧠 Local pronunciation analysis for:', targetWord, '→', spokenText, `(${confidence}% confidence)`)
-    
-    // Calculate similarity between target and spoken text
-    const similarity = targetWord.toLowerCase() === spokenText.toLowerCase() ? 100 : 
-                      spokenText.toLowerCase().includes(targetWord.toLowerCase()) ? 85 :
-                      targetWord.toLowerCase().includes(spokenText.toLowerCase()) ? 80 : 
-                      this.calculateSimilarity(targetWord, spokenText)
-    
-    // Calculate scores based on similarity and confidence
-    const accuracy = Math.max(similarity, confidence * 0.8)
-    const clarity = Math.min(confidence + 10, 100) // Boost clarity a bit
-    const phoneticMatch = similarity
-    const overallScore = Math.round((accuracy + clarity + phoneticMatch) / 3)
-    
-    // Generate appropriate feedback
-    const feedbackOptions = {
-      excellent: [
-        "¡Excelente pronunciación! Muy clara y precisa.",
-        "Pronunciación perfecta. ¡Sigue así!",
-        "Claridad excepcional en la pronunciación."
-      ],
-      good: [
-        "Buena pronunciación, se entiende claramente.",
-        "Pronunciación clara y comprensible.",
-        "Buen trabajo con los sonidos en inglés."
-      ],
-      fair: [
-        "Pronunciación aceptable, pero puede mejorar.",
-        "Se entiende, aunque algunos sonidos necesitan práctica.",
-        "Buena base, sigue practicando para mayor claridad."
-      ],
-      poor: [
-        "La pronunciación necesita más práctica.",
-        "Concéntrate en la claridad de los sonidos.",
-        "Sigue practicando para mejorar la pronunciación."
-      ]
-    }
-    
-    const tipsOptions = {
-      excellent: [
-        "¡Perfecto! Mantén ese nivel de claridad.",
-        "Excelente articulación de sonidos.",
-        "Tu pronunciación es muy natural."
-      ],
-      good: [
-        "Muy bien. Mantén el ritmo y la claridad.",
-        "Buena entonación. Sigue practicando así.",
-        "Excelente progreso en pronunciación."
-      ],
-      fair: [
-        "Enfócate en pronunciar cada sonido claramente.",
-        "Practica más despacio para mayor precisión.",
-        "Intenta repetir varias veces para mejorar."
-      ],
-      poor: [
-        "Practica pronunciando más despacio.",
-        "Enfócate en los sonidos difíciles del inglés.",
-        "Escucha atentamente y repite varias veces."
-      ]
-    }
-    
-    // Determine feedback level
-    let level = 'poor'
-    if (overallScore >= 90) level = 'excellent'
-    else if (overallScore >= 75) level = 'good'
-    else if (overallScore >= 60) level = 'fair'
-    
-    const feedback = feedbackOptions[level][Math.floor(Math.random() * feedbackOptions[level].length)]
-    const tips = tipsOptions[level][Math.floor(Math.random() * tipsOptions[level].length)]
-    
-    return {
-      accuracy: Math.round(accuracy),
-      clarity: Math.round(clarity),
-      phoneticMatch: Math.round(phoneticMatch),
-      overallScore: Math.round(overallScore),
-      feedback: feedback,
-      tips: tips
-    }
-  }
-  
-  static calculateSimilarity(str1, str2) {
-    // Simple similarity calculation based on character matching
-    const s1 = str1.toLowerCase()
-    const s2 = str2.toLowerCase()
-    
-    if (s1 === s2) return 100
-    
-    let matches = 0
-    const shorter = s1.length <= s2.length ? s1 : s2
-    const longer = s1.length > s2.length ? s1 : s2
-    
-    for (let i = 0; i < shorter.length; i++) {
-      if (longer.includes(shorter[i])) {
-        matches++
-      }
-    }
-    
-    return Math.round((matches / longer.length) * 100)
-  }
-
-  static getGenericMockResponse() {
-    return {
-      correct: Math.random() > 0.3, // 70% success rate
-      explanation: "Análisis inteligente local activado",
-      alternatives: ["alternativa1", "alternativa2"],
-      tips: "Sistema de respaldo funcionando correctamente"
+      console.error('❌ OpenRouter API Error - NO FALLBACK AVAILABLE')
+      console.error('❌ Error:', error.message)
+      throw error // Re-throw error instead of using fallback
     }
   }
 
   // No fallback functions - AI only mode
-
-  // Mock AI responses for local development
-  static getMockTranslationResponse(englishWord, userTranslation) {
-    // Simple mock validation logic
-    const basicTranslations = {
-      house: ['casa', 'hogar', 'vivienda'],
-      car: ['coche', 'auto', 'carro', 'automóvil'],
-      book: ['libro'],
-      water: ['agua'],
-      test: ['prueba', 'examen', 'test']
-    }
-    
-    const validTranslations = basicTranslations[englishWord.toLowerCase()] || []
-    const isCorrect = validTranslations.some(t => 
-      userTranslation.toLowerCase().includes(t) || t.includes(userTranslation.toLowerCase())
-    )
-    
-    return {
-      correct: isCorrect,
-      explanation: isCorrect ? 
-        `¡Correcto! "${userTranslation}" es una traducción válida de "${englishWord}".` :
-        `La traducción "${userTranslation}" no es exacta. Opciones válidas: ${validTranslations.join(', ')}.`,
-      alternatives: validTranslations,
-      tips: isCorrect ? 
-        'Excelente trabajo en la traducción.' :
-        'Intenta usar la traducción más común de la palabra.'
-    }
-  }
-
-  static getMockPronunciationResponse(targetWord, spokenText, confidence) {
-    // Simple mock pronunciation analysis
-    const similarity = targetWord.toLowerCase() === spokenText.toLowerCase() ? 100 : 
-                      spokenText.toLowerCase().includes(targetWord.toLowerCase()) ? 80 :
-                      targetWord.toLowerCase().includes(spokenText.toLowerCase()) ? 75 : 60
-    
-    const score = Math.max(similarity, confidence * 0.8)
-    
-    return {
-      accuracy: Math.round(score),
-      clarity: Math.round(confidence),
-      phoneticMatch: Math.round(similarity),
-      overallScore: Math.round((score + confidence) / 2),
-      feedback: `Pronunciación simulada: ${score >= 70 ? 'Buena pronunciación' : 'Necesita práctica'}. Similitud: ${similarity}%`,
-      tips: score >= 70 ? 
-        'Buen trabajo con la pronunciación en inglés.' :
-        'Intenta pronunciar más claramente y con confianza.'
-    }
-  }
 }
 
 // Speech Recognition Service
@@ -769,22 +474,12 @@ class GameLogic {
   static async startGame() {
     console.log('🎮 Starting game...')
     
-    // Test AI connection first
+    // Test AI connection first - REQUIRED for game
     const aiWorking = await this.testAIConnection()
     
-    // Only prevent game start if AI is unavailable AND we don't have local fallback
-    // Note: testAIConnection now returns true for API key issues since we have local fallback
-    if (!aiWorking && !CONFIG.IS_LOCAL_DEV) {
-      // This should only happen for severe connectivity issues
-      this.updateConnectivityStatus('error', '❌ Connectivity issue detected')
-      this.showDetailedErrorInfo(`
-        <strong>Connectivity Issue</strong><br>
-        There appears to be a network connectivity problem.<br>
-        Please check your internet connection and try again.<br><br>
-        <em>The game requires either AI service or local processing capability.</em>
-      `)
-      
-      console.log('❌ Cannot start game: No connectivity available')
+    // OpenRouter AI is REQUIRED - no fallback allowed
+    if (!aiWorking) {
+      console.log('❌ Cannot start game: OpenRouter AI is required')
       return false
     }
     
@@ -1339,38 +1034,10 @@ class GameLogic {
     this.switchPanel('setup')
   }
 
-  // Test AI connectivity
+  // Test AI connectivity - ONLY OpenRouter
   static async testAIConnection() {
-    console.log('🔍 Testing AI connection...')
+    console.log('🔍 Testing OpenRouter AI connection...')
     this.updateConnectivityStatus('checking', '🔍 Testing connectivity...')
-    
-    // Check if running locally
-    if (CONFIG.IS_LOCAL_DEV) {
-      console.log('🔧 Local development detected')
-      this.updateConnectivityStatus('connected', '🔧 Local dev mode (mock responses)')
-      console.log('💡 Using mock AI responses for local development')
-      console.log('💡 Deploy to a web server to use real AI')
-      
-      // Show development info
-      const devInfo = document.getElementById('dev-mode-info')
-      if (devInfo) {
-        devInfo.style.display = 'block'
-      }
-      
-      // Update button text to indicate mock mode
-      const startBtn = document.getElementById('start-game-btn')
-      if (startBtn) {
-        startBtn.innerHTML = '🚀 Start Game (Mock Mode)'
-      }
-      
-      return true
-    }
-    
-    // Hide development info in production
-    const devInfo = document.getElementById('dev-mode-info')
-    if (devInfo) {
-      devInfo.style.display = 'none'
-    }
     
     // First test basic internet
     const basicInternet = await this.testBasicConnectivity()
@@ -1385,73 +1052,59 @@ class GameLogic {
     
     try {
       const testResult = await AIService.validateTranslation('test', 'prueba')
-      console.log('✅ AI connection test successful')
-      this.updateConnectivityStatus('connected', '☁️ Cloud AI Ready')
+      console.log('✅ OpenRouter AI connection test successful')
+      this.updateConnectivityStatus('connected', '☁️ OpenRouter AI Ready')
       this.showAIModeInfo('cloud')
       
       // Update button for production
       const startBtn = document.getElementById('start-game-btn')
       if (startBtn) {
         startBtn.innerHTML = '🚀 Start Game'
+        startBtn.disabled = false
       }
       
       return true
     } catch (error) {
-      console.log('❌ AI connection test failed:', error)
+      console.log('❌ OpenRouter AI connection test failed:', error)
       
-      // Check for API key issues (401 errors)
+      // NO FALLBACK - OpenRouter is required
+      this.updateConnectivityStatus('error', '❌ OpenRouter AI Required')
+      
+      let errorMessage = 'OpenRouter AI service is required for accurate translations.'
+      
       if (error.message.includes('401') || error.message.includes('No auth credentials')) {
-        console.log('🔑 API key issue detected - using local fallback mode')
-        this.updateConnectivityStatus('connected', '🧠 Local AI Active')
-        this.showAIModeInfo('local')
-        
-        // Show that we're using local mode but it's fully functional
-        const startBtn = document.getElementById('start-game-btn')
-        if (startBtn) {
-          startBtn.innerHTML = '🚀 Start Game'
-        }
-        
-        return true // Allow game to proceed with local AI
+        errorMessage = `
+          <strong>🔑 API Key Issue</strong><br>
+          The OpenRouter API key appears to be invalid or expired.<br>
+          Please check the API key configuration.<br><br>
+          <em>OpenRouter AI is required for accurate translation validation.</em>
+        `
+      } else if (error.message.includes('CORS') || error.message.includes('Network') || error.message.includes('Failed to fetch')) {
+        errorMessage = `
+          <strong>🌐 Connection Issue</strong><br>
+          Cannot connect to OpenRouter AI service.<br>
+          Please check your internet connection and try again.<br><br>
+          <em>A stable internet connection is required for AI validation.</em>
+        `
+      } else {
+        errorMessage = `
+          <strong>⚠️ OpenRouter Service Error</strong><br>
+          There was an error connecting to the OpenRouter AI service.<br>
+          Error: ${error.message}<br><br>
+          <em>Please try again in a few moments.</em>
+        `
       }
       
-      // Check if it's a CORS error
-      else if (error.message.includes('CORS') || error.message.includes('Network') || error.message.includes('Failed to fetch')) {
-        this.updateConnectivityStatus('error', '⚠️ CORS/Network issue detected')
-        
-        // Only enable mock mode if actually running locally
-        if (CONFIG.IS_ORIGINALLY_LOCAL) {
-          this.showDetailedErrorInfo(`
-            <strong>CORS/Network Issue Detected</strong><br>
-            This is common when running locally. Solutions:<br>
-            • Deploy to a web server (GitHub Pages, Netlify, Vercel)<br>
-            • Use VS Code Live Server extension<br>
-            • Set up a local proxy server<br><br>
-            <em>For now, the game will use simulated responses.</em>
-          `)
-          
-          // Enable mock mode for CORS issues only in local development
-          CONFIG.IS_LOCAL_DEV = true
-          return this.testAIConnection() // Retry with mock mode
-        } else {
-          // In production (GitHub Pages), show different error
-          this.showDetailedErrorInfo(`
-            <strong>AI Service Connection Error</strong><br>
-            There seems to be a temporary connectivity issue with the AI service.<br>
-            Please try refreshing the page in a few moments.<br><br>
-            <em>Error: ${error.message}</em>
-          `)
-          return false
-        }
-      } else {
-        this.updateConnectivityStatus('error', '❌ AI service temporarily unavailable')
-        this.showDetailedErrorInfo(`
-          <strong>AI Service Unavailable</strong><br>
-          The OpenRouter API is temporarily unavailable.<br>
-          Please try again in a few minutes.<br><br>
-          <em>Error: ${error.message}</em>
-        `)
-        return false
+      this.showDetailedErrorInfo(errorMessage)
+      
+      // Update button to show error state
+      const startBtn = document.getElementById('start-game-btn')
+      if (startBtn) {
+        startBtn.innerHTML = '❌ AI Required - Cannot Start'
+        startBtn.disabled = true
       }
+      
+      return false // Do not allow game without OpenRouter
     }
   }
 
@@ -1518,33 +1171,9 @@ class GameLogic {
       existingModeInfo.remove()
     }
     
-    let modeHTML = ''
-    if (mode === 'local') {
-      modeHTML = `
-        <div class="ai-mode-info" style="
-          background: rgba(59, 130, 246, 0.1);
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 8px;
-          padding: 12px;
-          margin: 12px 0;
-        ">
-          <h5 style="color: #1e40af; margin-bottom: 8px;">🧠 Local AI Mode Active</h5>
-          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
-            ✅ Translation validation with comprehensive dictionary
-          </p>
-          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
-            ✅ Pronunciation analysis and feedback
-          </p>
-          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
-            ✅ Educational tips and suggestions
-          </p>
-          <p style="color: #64748b; font-size: 0.8rem; margin-top: 8px;">
-            The game provides full functionality using intelligent local processing.
-          </p>
-        </div>
-      `
-    } else if (mode === 'cloud') {
-      modeHTML = `
+    // Only show cloud mode - no local mode available
+    if (mode === 'cloud') {
+      const modeHTML = `
         <div class="ai-mode-info" style="
           background: rgba(16, 185, 129, 0.1);
           border: 1px solid rgba(16, 185, 129, 0.3);
@@ -1558,19 +1187,9 @@ class GameLogic {
           </p>
         </div>
       `
-    }
-    
-    if (modeHTML) {
       aiInfo.insertAdjacentHTML('beforeend', modeHTML)
     }
   }
-}
-
-// Debug function to test validation
-window.testValidation = function(word, translation) {
-  const result = AIService.fallbackTranslationValidation(word, translation)
-  console.log(`Testing "${word}" -> "${translation}":`, result)
-  return result
 }
 
 // Enhanced debug functions to test AI integration (AI ONLY MODE)

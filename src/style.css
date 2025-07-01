@@ -641,26 +641,6 @@ body {
   font-weight: 600;
 }
 
-/* Development Mode Info */
-.dev-mode-info {
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 8px;
-  padding: 12px;
-  margin: 12px 0;
-  text-align: left;
-}
-
-.dev-mode-info p {
-  margin: 4px 0;
-  font-size: 0.9rem;
-  color: #92400e;
-}
-
-.dev-mode-info strong {
-  color: #78350f;
-}
-
 /* Enhanced Button States */
 .primary-btn {
   transition: all 0.3s ease;
