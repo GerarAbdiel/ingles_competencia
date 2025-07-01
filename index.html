@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Translate Blitz Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="particles-container"></div>
+    <div id="app">
+      <!-- Game Setup Panel -->
+      <div id="setup-panel" class="panel active">
+        <div class="panel-content">
+          <h1 class="game-title">
+            <span class="title-gradient">Translate Blitz Pro</span>
+          </h1>
+          <p class="game-subtitle">Master English-Spanish Translation with AI-Powered Learning</p>
+          
+          <div class="ai-info">
+            <h4>🤖 AI-Powered Translation Game</h4>
+            <p>✅ Translation validation with Meta Llama 3.3 70B</p>
+            <p>✅ English pronunciation analysis and feedback</p>
+            <div id="connectivity-status" class="connectivity-status">
+              <span id="connectivity-indicator">🔍 Checking AI connection...</span>
+            </div>
+            <div id="dev-mode-info" class="dev-mode-info" style="display: none;">
+              <p>🔧 <strong>Local Development Mode Active</strong></p>
+              <p>Using simulated AI responses for testing purposes.</p>
+              <p>Deploy to a web server (GitHub Pages, Netlify, Vercel) to use real AI.</p>
+            </div>
+            <small>Note: CORS restrictions may prevent AI usage when running locally</small>
+          </div>
+          
+          <div class="setup-controls">
+            <div class="control-group">
+              <label for="vocabulary-upload" class="control-label">Load Custom Vocabulary</label>
+              <input type="file" id="vocabulary-upload" accept=".txt" class="file-input">
+              <span class="file-info">Upload .txt file with English words separated by commas</span>
+            </div>
+            
+            <div class="control-group">
+              <label for="difficulty-select" class="control-label">Difficulty Level</label>
+              <select id="difficulty-select" class="select-input">
+                <option value="easy">Easy (15 seconds per word)</option>
+                <option value="medium">Medium (8 seconds per word)</option>
+                <option value="hard">Hard (3 seconds per word)</option>
+              </select>
+            </div>
+            
+            <div class="ai-info">
+              <h4>🤖 AI Features</h4>
+              <p>• Translation validation with Meta Llama 3.3 70B</p>
+              <p>• English pronunciation analysis</p>
+              <p>• Intelligent feedback and learning tips</p>
+              <small>Note: If AI is unavailable, the game uses enhanced fallback systems</small>
+            </div>
+            
+            <button id="start-game-btn" class="primary-btn">Start Game</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Panel -->
+      <div id="game-panel" class="panel">
+        <div class="game-header">
+          <div class="stats">
+            <div class="stat-item">
+              <span class="stat-label">Score</span>
+              <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Correct</span>
+              <span class="stat-value" id="correct-count">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Progress</span>
+              <span class="stat-value" id="progress">0/0</span>
+            </div>
+          </div>
+          <div class="timer-container">
+            <div class="timer" id="timer">15</div>
+            <div class="timer-bar">
+              <div class="timer-fill" id="timer-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-content">
+          <!-- Translation Phase -->
+          <div id="translation-phase" class="game-phase active">
+            <h2 class="phase-title">Translation Phase</h2>
+            <div class="word-display">
+              <h3 class="current-word" id="current-word">Loading...</h3>
+              <p class="word-hint">Translate this word to Spanish</p>
+            </div>
+            <div class="input-container">
+              <input type="text" id="translation-input" class="game-input" placeholder="Enter Spanish translation...">
+              <button id="submit-translation" class="submit-btn">Submit</button>
+            </div>
+            <div id="translation-feedback" class="feedback-container"></div>
+          </div>
+
+          <!-- Pronunciation Phase -->
+          <div id="pronunciation-phase" class="game-phase">
+            <h2 class="phase-title">English Pronunciation Phase</h2>
+            <div class="word-display">
+              <h3 class="current-word" id="pronunciation-word">house</h3>
+              <p class="phonetic" id="phonetic-display">/haʊs/</p>
+              <p class="word-hint">Pronounce this English word clearly</p>
+            </div>
+            <div class="pronunciation-controls">
+              <button id="play-normal" class="audio-btn">🔊 Normal Speed</button>
+              <button id="play-slow" class="audio-btn">🐌 Slow Speed</button>
+            </div>
+            <div class="recording-container">
+              <button id="record-btn" class="record-btn">🎤 Start Recording</button>
+              <div class="attempt-info">
+                <span id="attempt-counter">Attempt 1 of 3</span>
+              </div>
+            </div>
+            <div id="pronunciation-feedback" class="feedback-container"></div>
+            <button id="next-word" class="primary-btn hidden">Next Word</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Panel -->
+      <div id="results-panel" class="panel">
+        <div class="panel-content">
+          <h2 class="results-title">Game Complete!</h2>
+          <div class="final-stats">
+            <div class="stat-card">
+              <h3>Final Score</h3>
+              <span class="big-number" id="final-score">0</span>
+            </div>
+            <div class="stat-card">
+              <h3>Accuracy</h3>
+              <span class="big-number" id="final-accuracy">0%</span>
+            </div>
+            <div class="stat-card">
+              <h3>Words Completed</h3>
+              <span class="big-number" id="words-completed">0</span>
+            </div>
+          </div>
+          <div id="error-review" class="error-review">
+            <h3>Review Your Errors</h3>
+            <div id="error-list"></div>
+          </div>
+          <div class="results-actions">
+            <button id="play-again" class="primary-btn">Play Again</button>
+            <button id="new-setup" class="secondary-btn">New Setup</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Processing with AI...</p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>l>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
