@@ -14,7 +14,7 @@ An interactive English-Spanish translation game powered by advanced AI for real-
 
 ## 🚀 Live Demo
 
-**[Play Translate Blitz Pro →](https://your-username.github.io/ingles_competencia)**
+**[Play Translate Blitz Pro →](https://GerarAbdiel.github.io/ingles_competencia)**
 
 ## 🛠️ Tech Stack
 
@@ -41,7 +41,7 @@ Visit the live demo link above - no setup required!
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/ingles_competencia.git
+git clone https://github.com/GerarAbdiel/ingles_competencia.git
 cd ingles_competencia
 
 # Install dependencies
@@ -61,7 +61,7 @@ npm run dev
 2. Go to Settings → Pages
 3. Select "Deploy from a branch"
 4. Choose `main` branch and `/` (root)
-5. Your app will be available at `https://your-username.github.io/ingles_competencia`
+5. Your app will be available at `https://GerarAbdiel.github.io/ingles_competencia`
 
 ### Alternative Platforms
 
