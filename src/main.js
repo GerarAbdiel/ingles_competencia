@@ -687,22 +687,19 @@ class GameLogic {
     // Test AI connection first
     const aiWorking = await this.testAIConnection()
     
-    // If AI is not working and we're not in local dev mode, show error
+    // Only prevent game start if AI is unavailable AND we don't have local fallback
+    // Note: testAIConnection now returns true for API key issues since we have local fallback
     if (!aiWorking && !CONFIG.IS_LOCAL_DEV) {
-      // In production (GitHub Pages), show proper error without fallback to mock
-      this.updateConnectivityStatus('error', '❌ AI service temporarily unavailable')
+      // This should only happen for severe connectivity issues
+      this.updateConnectivityStatus('error', '❌ Connectivity issue detected')
       this.showDetailedErrorInfo(`
-        <strong>AI Service Connection Error</strong><br>
-        The AI translation service is temporarily unavailable.<br>
-        This could be due to:<br>
-        • Temporary service outage<br>
-        • Network connectivity issues<br>
-        • API rate limits<br><br>
-        <em>Please try refreshing the page in a few moments.</em>
+        <strong>Connectivity Issue</strong><br>
+        There appears to be a network connectivity problem.<br>
+        Please check your internet connection and try again.<br><br>
+        <em>The game requires either AI service or local processing capability.</em>
       `)
       
-      // Don't start the game without AI in production
-      console.log('❌ Cannot start game: AI service unavailable in production')
+      console.log('❌ Cannot start game: No connectivity available')
       return false
     }
     
@@ -1302,7 +1299,8 @@ class GameLogic {
     try {
       const testResult = await AIService.validateTranslation('test', 'prueba')
       console.log('✅ AI connection test successful')
-      this.updateConnectivityStatus('connected', '✅ AI ready for production use')
+      this.updateConnectivityStatus('connected', '☁️ Cloud AI Ready')
+      this.showAIModeInfo('cloud')
       
       // Update button for production
       const startBtn = document.getElementById('start-game-btn')
@@ -1314,8 +1312,23 @@ class GameLogic {
     } catch (error) {
       console.log('❌ AI connection test failed:', error)
       
+      // Check for API key issues (401 errors)
+      if (error.message.includes('401') || error.message.includes('No auth credentials')) {
+        console.log('🔑 API key issue detected - using local fallback mode')
+        this.updateConnectivityStatus('connected', '🧠 Local AI Active')
+        this.showAIModeInfo('local')
+        
+        // Show that we're using local mode but it's fully functional
+        const startBtn = document.getElementById('start-game-btn')
+        if (startBtn) {
+          startBtn.innerHTML = '🚀 Start Game'
+        }
+        
+        return true // Allow game to proceed with local AI
+      }
+      
       // Check if it's a CORS error
-      if (error.message.includes('CORS') || error.message.includes('Network') || error.message.includes('Failed to fetch')) {
+      else if (error.message.includes('CORS') || error.message.includes('Network') || error.message.includes('Failed to fetch')) {
         this.updateConnectivityStatus('error', '⚠️ CORS/Network issue detected')
         
         // Only enable mock mode if actually running locally
@@ -1404,6 +1417,64 @@ class GameLogic {
     if (indicator && statusContainer) {
       indicator.textContent = message
       statusContainer.className = `connectivity-status ${status}`
+    }
+  }
+
+  // Show AI mode information to users
+  static showAIModeInfo(mode) {
+    const aiInfo = document.querySelector('.ai-info')
+    if (!aiInfo) return
+    
+    // Remove existing mode info
+    const existingModeInfo = aiInfo.querySelector('.ai-mode-info')
+    if (existingModeInfo) {
+      existingModeInfo.remove()
+    }
+    
+    let modeHTML = ''
+    if (mode === 'local') {
+      modeHTML = `
+        <div class="ai-mode-info" style="
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 8px;
+          padding: 12px;
+          margin: 12px 0;
+        ">
+          <h5 style="color: #1e40af; margin-bottom: 8px;">🧠 Local AI Mode Active</h5>
+          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
+            ✅ Translation validation with comprehensive dictionary
+          </p>
+          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
+            ✅ Pronunciation analysis and feedback
+          </p>
+          <p style="color: #1e40af; font-size: 0.9rem; margin: 4px 0;">
+            ✅ Educational tips and suggestions
+          </p>
+          <p style="color: #64748b; font-size: 0.8rem; margin-top: 8px;">
+            The game provides full functionality using intelligent local processing.
+          </p>
+        </div>
+      `
+    } else if (mode === 'cloud') {
+      modeHTML = `
+        <div class="ai-mode-info" style="
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 8px;
+          padding: 12px;
+          margin: 12px 0;
+        ">
+          <h5 style="color: #059669; margin-bottom: 8px;">☁️ Cloud AI Active</h5>
+          <p style="color: #059669; font-size: 0.9rem;">
+            Connected to Meta Llama 3.3 70B via OpenRouter for advanced AI analysis.
+          </p>
+        </div>
+      `
+    }
+    
+    if (modeHTML) {
+      aiInfo.insertAdjacentHTML('beforeend', modeHTML)
     }
   }
 }
