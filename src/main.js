@@ -20,7 +20,14 @@ const CONFIG = {
     autoGainControl: true
   },
   // Development mode - detect if running locally
-  IS_LOCAL_DEV: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  IS_LOCAL_DEV: window.location.hostname === 'localhost' || 
+               window.location.hostname === '127.0.0.1' ||
+               window.location.protocol === 'file:',
+  
+  // Store original local dev state (never changes during runtime)
+  IS_ORIGINALLY_LOCAL: window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1' ||
+                      window.location.protocol === 'file:'
 }
 
 // Default vocabulary
@@ -582,44 +589,23 @@ class GameLogic {
     // Test AI connection first
     const aiWorking = await this.testAIConnection()
     
-    // If AI is not working and we're not in local dev mode, show options
+    // If AI is not working and we're not in local dev mode, show error
     if (!aiWorking && !CONFIG.IS_LOCAL_DEV) {
-      const userChoice = confirm(`⚠️ AI Connection Issue Detected\n\nThe game requires AI for translation validation and pronunciation analysis.\n\nOptions:\n✅ Click "OK" to use simulated responses (for testing)\n❌ Click "Cancel" to fix connection first\n\nRecommended: Deploy to a web server for full AI functionality.`)
+      // In production (GitHub Pages), show proper error without fallback to mock
+      this.updateConnectivityStatus('error', '❌ AI service temporarily unavailable')
+      this.showDetailedErrorInfo(`
+        <strong>AI Service Connection Error</strong><br>
+        The AI translation service is temporarily unavailable.<br>
+        This could be due to:<br>
+        • Temporary service outage<br>
+        • Network connectivity issues<br>
+        • API rate limits<br><br>
+        <em>Please try refreshing the page in a few moments.</em>
+      `)
       
-      if (userChoice) {
-        // User wants to continue with mock mode
-        console.log('🔧 User chose to continue with mock responses')
-        CONFIG.IS_LOCAL_DEV = true // Enable mock mode
-        this.updateConnectivityStatus('connected', '🔧 Using simulated responses')
-        
-        // Show mock mode info
-        const devInfo = document.getElementById('dev-mode-info')
-        if (devInfo) {
-          devInfo.style.display = 'block'
-          devInfo.innerHTML = `
-            <p>🔧 <strong>Mock Mode Enabled</strong></p>
-            <p>Using simulated AI responses for this session.</p>
-            <p>Deploy to a web server for real AI functionality.</p>
-          `
-        }
-        
-        // Update button to show mock mode
-        const startBtn = document.getElementById('start-game-btn')
-        if (startBtn) {
-          startBtn.innerHTML = '🚀 Continue Game (Mock Mode)'
-        }
-      } else {
-        // User wants to fix connection
-        console.log('❌ User chose to fix connection first')
-        this.showDetailedErrorInfo(`
-          <strong>How to Fix AI Connection:</strong><br>
-          1. <strong>Deploy to a web server:</strong> GitHub Pages, Netlify, Vercel<br>
-          2. <strong>Use VS Code Live Server:</strong> Install extension and "Go Live"<br>
-          3. <strong>Check internet connection:</strong> Ensure stable connectivity<br><br>
-          <em>Click "Start Game" again after fixing the connection.</em>
-        `)
-        return
-      }
+      // Don't start the game without AI in production
+      console.log('❌ Cannot start game: AI service unavailable in production')
+      return false
     }
     
     console.log('✅ Proceeding with game start...')
@@ -1233,18 +1219,31 @@ class GameLogic {
       // Check if it's a CORS error
       if (error.message.includes('CORS') || error.message.includes('Network') || error.message.includes('Failed to fetch')) {
         this.updateConnectivityStatus('error', '⚠️ CORS/Network issue detected')
-        this.showDetailedErrorInfo(`
-          <strong>CORS/Network Issue Detected</strong><br>
-          This is common when running locally. Solutions:<br>
-          • Deploy to a web server (GitHub Pages, Netlify, Vercel)<br>
-          • Use VS Code Live Server extension<br>
-          • Set up a local proxy server<br><br>
-          <em>For now, the game will use simulated responses.</em>
-        `)
         
-        // Enable mock mode for CORS issues
-        CONFIG.IS_LOCAL_DEV = true
-        return this.testAIConnection() // Retry with mock mode
+        // Only enable mock mode if actually running locally
+        if (CONFIG.IS_ORIGINALLY_LOCAL) {
+          this.showDetailedErrorInfo(`
+            <strong>CORS/Network Issue Detected</strong><br>
+            This is common when running locally. Solutions:<br>
+            • Deploy to a web server (GitHub Pages, Netlify, Vercel)<br>
+            • Use VS Code Live Server extension<br>
+            • Set up a local proxy server<br><br>
+            <em>For now, the game will use simulated responses.</em>
+          `)
+          
+          // Enable mock mode for CORS issues only in local development
+          CONFIG.IS_LOCAL_DEV = true
+          return this.testAIConnection() // Retry with mock mode
+        } else {
+          // In production (GitHub Pages), show different error
+          this.showDetailedErrorInfo(`
+            <strong>AI Service Connection Error</strong><br>
+            There seems to be a temporary connectivity issue with the AI service.<br>
+            Please try refreshing the page in a few moments.<br><br>
+            <em>Error: ${error.message}</em>
+          `)
+          return false
+        }
       } else {
         this.updateConnectivityStatus('error', '❌ AI service temporarily unavailable')
         this.showDetailedErrorInfo(`
