@@ -1,9 +1,8 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: './',
+  base: '/ingles_competencia/',
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets'
+    outDir: 'dist'
   }
 })
