@@ -270,15 +270,10 @@ Score 0-100: 90+=excellent, 80+=good, 70+=adequate, 60+=poor, <60=very poor`
           'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
-          'X-Title': 'Translate Blitz Pro',
-          // Additional CORS headers
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'X-Title': 'Translate Blitz Pro'
         },
         body: JSON.stringify(requestBody),
-        signal: controller.signal,
-        mode: 'cors' // Explicitly set CORS mode
+        signal: controller.signal
       })
 
       clearTimeout(timeoutId)

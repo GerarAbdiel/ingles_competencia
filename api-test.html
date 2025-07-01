@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+        .warning { border-left-color: #ffc107; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 OpenRouter API Direct Test</h1>
+        <p>This test directly calls the OpenRouter API to verify connectivity and authentication.</p>
+        
+        <button onclick="testSimpleAPI()">🔍 Test API Connection</button>
+        <button onclick="testTranslationAPI()">📝 Test Translation</button>
+        <button onclick="testFromDifferentOrigin()">🌐 Test CORS</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_KEY = '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';
+        const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+        const MODEL = 'meta-llama/llama-3.3-70b-instruct';
+
+        function addResult(title, content, type = 'result') {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${title}</strong><br>${content}`;
+            resultsDiv.appendChild(div);
+        }
+
+        async function testSimpleAPI() {
+            addResult('🔍 Testing Basic API Connection...', 'Sending simple test request', 'warning');
+            
+            try {
+                console.log('Testing with origin:', window.location.origin);
+                
+                const response = await fetch(ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'API Test'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: [{ role: 'user', content: 'Say "Hello API test successful"' }],
+                        max_tokens: 20,
+                        temperature: 0.1
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                const message = data.choices?.[0]?.message?.content || 'No content';
+                
+                addResult('✅ API Connection Successful', `
+                    Response: ${message}<br>
+                    Model: ${data.model || 'Unknown'}<br>
+                    Usage: ${JSON.stringify(data.usage || {})}
+                `, 'success');
+                
+                console.log('Full response:', data);
+                
+            } catch (error) {
+                console.error('API Test Error:', error);
+                addResult('❌ API Connection Failed', `
+                    Error: ${error.message}<br>
+                    Type: ${error.name}<br>
+                    Check console for details
+                `, 'error');
+            }
+        }
+
+        async function testTranslationAPI() {
+            addResult('📝 Testing Translation Validation...', 'Testing translation prompt', 'warning');
+            
+            const prompt = `You are a Spanish teacher. Is "casa" a correct Spanish translation of "house"?
+
+Consider: exact matches, synonyms, regional variations (Mexican/Spanish/Argentine), with/without articles.
+
+Respond with ONLY this JSON format:
+{
+  "correct": true/false,
+  "explanation": "Brief Spanish explanation",
+  "alternatives": ["alt1", "alt2", "alt3"],
+  "tips": "Brief Spanish tip"
+}
+
+Evaluate: "house" → "casa"`;
+
+            try {
+                const response = await fetch(ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Translation Test'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: [{ role: 'user', content: prompt }],
+                        max_tokens: 300,
+                        temperature: 0.3
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const data = await response.json();
+                const content = data.choices?.[0]?.message?.content || '';
+                
+                // Try to parse JSON
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    addResult('✅ Translation Test Successful', `
+                        <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                    `, 'success');
+                } else {
+                    addResult('⚠️ Translation Response (No JSON)', `
+                        Raw response: ${content}
+                    `, 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Translation Test Error:', error);
+                addResult('❌ Translation Test Failed', `
+                    Error: ${error.message}<br>
+                    Check console for details
+                `, 'error');
+            }
+        }
+
+        async function testFromDifferentOrigin() {
+            addResult('🌐 Testing CORS...', 'Checking cross-origin request handling', 'warning');
+            
+            // Test with different referrer
+            try {
+                const response = await fetch(ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': 'https://gerarabdiel.github.io',
+                        'X-Title': 'CORS Test'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: [{ role: 'user', content: 'CORS test' }],
+                        max_tokens: 10
+                    })
+                });
+
+                if (response.ok) {
+                    addResult('✅ CORS Working', 'Cross-origin requests are allowed', 'success');
+                } else {
+                    const errorText = await response.text();
+                    addResult('⚠️ CORS Issue', `Status: ${response.status} - ${errorText}`, 'warning');
+                }
+                
+            } catch (error) {
+                if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    addResult('❌ CORS Blocked', `
+                        CORS policy is blocking the request.<br>
+                        This is likely the root cause of the issues.
+                    `, 'error');
+                } else {
+                    addResult('❌ CORS Test Failed', error.message, 'error');
+                }
+            }
+        }
+
+        // Environment info
+        document.addEventListener('DOMContentLoaded', function() {
+            addResult('📍 Environment Info', `
+                Origin: ${window.location.origin}<br>
+                Hostname: ${window.location.hostname}<br>
+                Protocol: ${window.location.protocol}<br>
+                User Agent: ${navigator.userAgent}
+            `, 'result');
+        });
+    </script>
+</body>
+</html>
