@@ -49,6 +49,7 @@ class GameState {
     this.currentWordIndex = 0
     this.score = 0
     this.correctCount = 0
+    this.incorrectCount = 0
     this.totalWords = 0
     this.difficulty = 'easy'
     this.currentWord = ''
@@ -326,7 +327,16 @@ Score 0-100: 90+=excellent, 80+=good, 70+=adequate, 60+=poor, <60=very poor`
     
     // Extract pronunciation analysis request
     if (prompt.includes('pronunciation') || prompt.includes('spoken text')) {
-      return this.analyzePronunciationLocally()
+      // Extract parameters from prompt
+      const targetWordMatch = prompt.match(/pronunciation of "([^"]+)"/)
+      const spokenTextMatch = prompt.match(/Student said: "([^"]+)"/)
+      const confidenceMatch = prompt.match(/confidence: (\d+)%/)
+      
+      const targetWord = targetWordMatch ? targetWordMatch[1] : 'unknown'
+      const spokenText = spokenTextMatch ? spokenTextMatch[1] : 'unknown'
+      const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 80
+      
+      return this.analyzePronunciationLocally(targetWord, spokenText, confidence)
     }
     
     // Generic fallback
@@ -404,30 +414,105 @@ Score 0-100: 90+=excellent, 80+=good, 70+=adequate, 60+=poor, <60=very poor`
     }
   }
 
-  static analyzePronunciationLocally() {
-    // Intelligent pronunciation analysis simulation
-    const score = Math.floor(Math.random() * 30) + 70 // 70-100 range for realistic scores
+  static analyzePronunciationLocally(targetWord, spokenText, confidence) {
+    console.log('🧠 Local pronunciation analysis for:', targetWord, '→', spokenText, `(${confidence}% confidence)`)
     
-    const feedbackOptions = [
-      "Pronunciación clara y comprensible",
-      "Buena articulación de sonidos",
-      "Entonación apropiada detectada",
-      "Ritmo natural en la pronunciación"
-    ]
+    // Calculate similarity between target and spoken text
+    const similarity = targetWord.toLowerCase() === spokenText.toLowerCase() ? 100 : 
+                      spokenText.toLowerCase().includes(targetWord.toLowerCase()) ? 85 :
+                      targetWord.toLowerCase().includes(spokenText.toLowerCase()) ? 80 : 
+                      this.calculateSimilarity(targetWord, spokenText)
     
-    const suggestions = [
-      "Mantén el ritmo constante",
-      "Enfócate en los sonidos finales",
-      "Practica la entonación",
-      "Excelente claridad"
-    ]
+    // Calculate scores based on similarity and confidence
+    const accuracy = Math.max(similarity, confidence * 0.8)
+    const clarity = Math.min(confidence + 10, 100) // Boost clarity a bit
+    const phoneticMatch = similarity
+    const overallScore = Math.round((accuracy + clarity + phoneticMatch) / 3)
+    
+    // Generate appropriate feedback
+    const feedbackOptions = {
+      excellent: [
+        "¡Excelente pronunciación! Muy clara y precisa.",
+        "Pronunciación perfecta. ¡Sigue así!",
+        "Claridad excepcional en la pronunciación."
+      ],
+      good: [
+        "Buena pronunciación, se entiende claramente.",
+        "Pronunciación clara y comprensible.",
+        "Buen trabajo con los sonidos en inglés."
+      ],
+      fair: [
+        "Pronunciación aceptable, pero puede mejorar.",
+        "Se entiende, aunque algunos sonidos necesitan práctica.",
+        "Buena base, sigue practicando para mayor claridad."
+      ],
+      poor: [
+        "La pronunciación necesita más práctica.",
+        "Concéntrate en la claridad de los sonidos.",
+        "Sigue practicando para mejorar la pronunciación."
+      ]
+    }
+    
+    const tipsOptions = {
+      excellent: [
+        "¡Perfecto! Mantén ese nivel de claridad.",
+        "Excelente articulación de sonidos.",
+        "Tu pronunciación es muy natural."
+      ],
+      good: [
+        "Muy bien. Mantén el ritmo y la claridad.",
+        "Buena entonación. Sigue practicando así.",
+        "Excelente progreso en pronunciación."
+      ],
+      fair: [
+        "Enfócate en pronunciar cada sonido claramente.",
+        "Practica más despacio para mayor precisión.",
+        "Intenta repetir varias veces para mejorar."
+      ],
+      poor: [
+        "Practica pronunciando más despacio.",
+        "Enfócate en los sonidos difíciles del inglés.",
+        "Escucha atentamente y repite varias veces."
+      ]
+    }
+    
+    // Determine feedback level
+    let level = 'poor'
+    if (overallScore >= 90) level = 'excellent'
+    else if (overallScore >= 75) level = 'good'
+    else if (overallScore >= 60) level = 'fair'
+    
+    const feedback = feedbackOptions[level][Math.floor(Math.random() * feedbackOptions[level].length)]
+    const tips = tipsOptions[level][Math.floor(Math.random() * tipsOptions[level].length)]
     
     return {
-      score: score,
-      feedback: feedbackOptions[Math.floor(Math.random() * feedbackOptions.length)],
-      suggestions: [suggestions[Math.floor(Math.random() * suggestions.length)]],
-      phonetic_match: score
+      accuracy: Math.round(accuracy),
+      clarity: Math.round(clarity),
+      phoneticMatch: Math.round(phoneticMatch),
+      overallScore: Math.round(overallScore),
+      feedback: feedback,
+      tips: tips
     }
+  }
+  
+  static calculateSimilarity(str1, str2) {
+    // Simple similarity calculation based on character matching
+    const s1 = str1.toLowerCase()
+    const s2 = str2.toLowerCase()
+    
+    if (s1 === s2) return 100
+    
+    let matches = 0
+    const shorter = s1.length <= s2.length ? s1 : s2
+    const longer = s1.length > s2.length ? s1 : s2
+    
+    for (let i = 0; i < shorter.length; i++) {
+      if (longer.includes(shorter[i])) {
+        matches++
+      }
+    }
+    
+    return Math.round((matches / longer.length) * 100)
   }
 
   static getGenericMockResponse() {
@@ -1126,7 +1211,8 @@ class GameLogic {
       game.correctCount++
       console.log('✅ Word completed successfully! Score added:', wordScore)
     } else {
-      // Record error
+      // Record error and increment incorrect count
+      game.incorrectCount++
       let errorType = 'both'
       if (translationPassed) errorType = 'pronunciation'
       else if (pronunciationPassed) errorType = 'translation'
@@ -1234,7 +1320,8 @@ class GameLogic {
 
   static updateUI() {
     ui.score.textContent = game.score
-    ui.correctCount.textContent = game.correctCount
+    // Show correct/incorrect format
+    ui.correctCount.textContent = `${game.correctCount}/${game.incorrectCount}`
     ui.progress.textContent = `${game.currentWordIndex}/${game.totalWords}`
   }
 
