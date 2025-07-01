@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translate Blitz Pro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .title {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        .game-area {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+        .status {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 1.1rem;
+        }
+        .success {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🎯 Translate Blitz Pro</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 30px;">
+            Juego de traducción inglés-español con IA Meta Llama
+        </p>
+
+        <div class="game-area">
+            <div class="status" id="status">
+                🎮 ¡Funcionando correctamente!
+            </div>
+
+            <div style="margin: 20px 0;">
+                <button onclick="testPage()" class="btn">
+                    🧪 Probar JavaScript
+                </button>
+                <button onclick="showInfo()" class="btn">
+                    ℹ️ Información
+                </button>
+            </div>
+
+            <div id="info" style="display: none; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                <h3>✅ Esta es la versión funcional</h3>
+                <p>• Modelo: Meta Llama 3.3 70B (gratuito)</p>
+                <p>• CSS: Gradientes azul-púrpura</p>
+                <p>• JavaScript: Completamente funcional</p>
+                <p>• API: OpenRouter configurada</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🎮 Translate Blitz Pro cargado correctamente');
+
+        function testPage() {
+            document.getElementById('status').innerHTML = '<span class="success">✅ ¡JavaScript funciona perfectamente!</span>';
+            console.log('✅ Test exitoso');
+        }
+
+        function showInfo() {
+            const info = document.getElementById('info');
+            if (info.style.display === 'none') {
+                info.style.display = 'block';
+            } else {
+                info.style.display = 'none';
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOM cargado correctamente');
+            document.getElementById('status').textContent = '🎯 Página cargada - Todo funciona';
+        });
+
+        console.log('✅ Script completamente cargado');
+    </script>
+</body>
+</html>

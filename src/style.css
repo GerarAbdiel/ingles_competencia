@@ -785,3 +785,84 @@ body {
     border: 2px solid #000;
   }
 }
+
+/* API Configuration Styles */
+.api-config {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+}
+
+.api-config summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #3b82f6;
+  margin-bottom: 10px;
+}
+
+.api-config summary:hover {
+  color: #1d4ed8;
+}
+
+.api-config .api-key-controls {
+  margin-top: 10px;
+}
+
+.api-config .api-key-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  background: white;
+  transition: border-color 0.3s ease;
+}
+
+.api-config .api-key-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.api-config .api-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.api-config .secondary-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.api-config .secondary-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.api-config .api-help {
+  color: #6b7280;
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.api-config .api-help a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.api-config .api-help a:hover {
+  text-decoration: underline;
+}
